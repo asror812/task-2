@@ -1,0 +1,48 @@
+entity Category {
+    name String required unique maxlength(100),
+    active Boolean required,
+    sortOrder Integer required
+}
+
+entity  Recipient {
+    name String required maxlength(100),
+    code String required unique maxlength(50),
+    active Boolean required
+}
+
+relationship ManyToOne {
+    Recipient{category(name) required} to Category
+}
+
+entity RecipientField {
+    name String required maxlength(50),
+    label String required maxlength(100),
+    validationRegex String maxlength(255),
+    method RecipientFieldMethod required,
+    active Boolean required,
+    required Boolean required,
+    type RecipientFieldType required,
+    sortOrder Integer required
+}
+
+enum RecipientFieldType {
+    TEXT,
+    NUMBER,
+    PHONE,
+    AMOUNT,
+    DATE
+}
+
+enum RecipientFieldMethod {
+    CHECK,
+    PAY
+}
+
+relationship ManyToOne {
+    RecipientField{recipient(name) required} to Recipient
+}
+
+
+service all with serviceClass
+dto all with mapstruct
+paginate all with pagination

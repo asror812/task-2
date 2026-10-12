@@ -1,0 +1,20 @@
+name: paynet
+services:
+  postgresql:
+    extends:
+      file: ./postgresql.yml
+      service: postgresql
+
+  redis:
+    extends:
+      file: ./redis.yml
+      service: redis
+
+#  app:
+#    extends:
+#      service: app
+#     file: ./app.yml
+
+#networks:
+#  general:
+#    external: true

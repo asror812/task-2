@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261007103100-1" author="paynet">
+        <insert tableName="category">
+            <column name="id" valueNumeric="1"/>
+            <column name="name" value="Mobile Operators"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="sort_order" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="category">
+            <column name="id" valueNumeric="2"/>
+            <column name="name" value="Utilities"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="sort_order" valueNumeric="2"/>
+        </insert>
+
+        <insert tableName="recipient">
+            <column name="id" valueNumeric="1"/>
+            <column name="name" value="Ucell"/>
+            <column name="code" value="UCELL"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="category_id" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="recipient">
+            <column name="id" valueNumeric="2"/>
+            <column name="name" value="Beeline"/>
+            <column name="code" value="BEELINE"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="category_id" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="recipient">
+            <column name="id" valueNumeric="3"/>
+            <column name="name" value="Gas"/>
+            <column name="code" value="GAS"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="category_id" valueNumeric="2"/>
+        </insert>
+
+        <insert tableName="recipient">
+            <column name="id" valueNumeric="4"/>
+            <column name="name" value="Electricity"/>
+            <column name="code" value="ELECTRICITY"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="category_id" valueNumeric="2"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="1"/>
+            <column name="recipient_id" valueNumeric="1"/>
+            <column name="name" value="phoneNumber"/>
+            <column name="label" value="Phone Number"/>
+            <column name="validation_regex" value="^\+998\d{9}$"/>
+            <column name="method" value="CHECK"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="PHONE"/>
+            <column name="sort_order" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="2"/>
+            <column name="recipient_id" valueNumeric="1"/>
+            <column name="name" value="checkId"/>
+            <column name="label" value="Check ID"/>
+            <column name="validation_regex" value=""/>
+            <column name="method" value="PAY"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="TEXT"/>
+            <column name="sort_order" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="3"/>
+            <column name="recipient_id" valueNumeric="1"/>
+            <column name="name" value="amount"/>
+            <column name="label" value="Amount"/>
+            <column name="validation_regex" value="^\d+(\.\d{1,2})?$"/>
+            <column name="method" value="PAY"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="AMOUNT"/>
+            <column name="sort_order" valueNumeric="2"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="4"/>
+            <column name="recipient_id" valueNumeric="2"/>
+            <column name="name" value="phoneNumber"/>
+            <column name="label" value="Phone Number"/>
+            <column name="validation_regex" value="^\+998\d{9}$"/>
+            <column name="method" value="CHECK"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="PHONE"/>
+            <column name="sort_order" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="5"/>
+            <column name="recipient_id" valueNumeric="2"/>
+            <column name="name" value="checkId"/>
+            <column name="label" value="Check ID"/>
+            <column name="validation_regex" value=""/>
+            <column name="method" value="PAY"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="TEXT"/>
+            <column name="sort_order" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="6"/>
+            <column name="recipient_id" valueNumeric="2"/>
+            <column name="name" value="amount"/>
+            <column name="label" value="Amount"/>
+            <column name="validation_regex" value="^\d+(\.\d{1,2})?$"/>
+            <column name="method" value="PAY"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="AMOUNT"/>
+            <column name="sort_order" valueNumeric="2"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="7"/>
+            <column name="recipient_id" valueNumeric="3"/>
+            <column name="name" value="region"/>
+            <column name="label" value="Region"/>
+            <column name="validation_regex" value=""/>
+            <column name="method" value="CHECK"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="TEXT"/>
+            <column name="sort_order" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="8"/>
+            <column name="recipient_id" valueNumeric="3"/>
+            <column name="name" value="district"/>
+            <column name="label" value="District"/>
+            <column name="validation_regex" value=""/>
+            <column name="method" value="CHECK"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="TEXT"/>
+            <column name="sort_order" valueNumeric="2"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="9"/>
+            <column name="recipient_id" valueNumeric="3"/>
+            <column name="name" value="accountNumber"/>
+            <column name="label" value="Account Number"/>
+            <column name="validation_regex" value="^\d{6,20}$"/>
+            <column name="method" value="CHECK"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="TEXT"/>
+            <column name="sort_order" valueNumeric="3"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="10"/>
+            <column name="recipient_id" valueNumeric="3"/>
+            <column name="name" value="checkId"/>
+            <column name="label" value="Check ID"/>
+            <column name="validation_regex" value=""/>
+            <column name="method" value="PAY"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="TEXT"/>
+            <column name="sort_order" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="11"/>
+            <column name="recipient_id" valueNumeric="3"/>
+            <column name="name" value="amount"/>
+            <column name="label" value="Amount"/>
+            <column name="validation_regex" value="^\d+(\.\d{1,2})?$"/>
+            <column name="method" value="PAY"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="AMOUNT"/>
+            <column name="sort_order" valueNumeric="2"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="12"/>
+            <column name="recipient_id" valueNumeric="4"/>
+            <column name="name" value="region"/>
+            <column name="label" value="Region"/>
+            <column name="validation_regex" value=""/>
+            <column name="method" value="CHECK"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="TEXT"/>
+            <column name="sort_order" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="13"/>
+            <column name="recipient_id" valueNumeric="4"/>
+            <column name="name" value="district"/>
+            <column name="label" value="District"/>
+            <column name="validation_regex" value=""/>
+            <column name="method" value="CHECK"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="TEXT"/>
+            <column name="sort_order" valueNumeric="2"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="14"/>
+            <column name="recipient_id" valueNumeric="4"/>
+            <column name="name" value="accountNumber"/>
+            <column name="label" value="Account Number"/>
+            <column name="validation_regex" value="^\d{6,20}$"/>
+            <column name="method" value="CHECK"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="TEXT"/>
+            <column name="sort_order" valueNumeric="3"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="15"/>
+            <column name="recipient_id" valueNumeric="4"/>
+            <column name="name" value="checkId"/>
+            <column name="label" value="Check ID"/>
+            <column name="validation_regex" value=""/>
+            <column name="method" value="PAY"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="TEXT"/>
+            <column name="sort_order" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="recipient_field">
+            <column name="id" valueNumeric="16"/>
+            <column name="recipient_id" valueNumeric="4"/>
+            <column name="name" value="amount"/>
+            <column name="label" value="Amount"/>
+            <column name="validation_regex" value="^\d+(\.\d{1,2})?$"/>
+            <column name="method" value="PAY"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="required" valueBoolean="true"/>
+            <column name="type" value="AMOUNT"/>
+            <column name="sort_order" valueNumeric="2"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

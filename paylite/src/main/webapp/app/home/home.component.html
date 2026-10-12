@@ -1,0 +1,251 @@
+<main class="paylite-shell">
+  <section class="hero">
+    <div>
+      <span class="eyebrow">Мини-биллинг</span>
+      <h1>PayLite</h1>
+      <p>Принимайте платежи, контролируйте баланс и комиссию в одном месте.</p>
+    </div>
+    @if (account(); as currentAccount) {
+      <div class="user-chip">
+        <span class="user-avatar">{{ currentAccount.login.charAt(0).toUpperCase() }}</span>
+        <span>
+          <small>Вы вошли как</small>
+          <strong>{{ currentAccount.login }}</strong>
+        </span>
+      </div>
+    }
+  </section>
+
+  @if (message()) {
+    <div class="notice notice-success" role="status">{{ message() }}</div>
+  }
+  @if (error()) {
+    <div class="notice notice-error" role="alert">{{ error() }}</div>
+  }
+
+  @if (account() === null) {
+    <section class="welcome-card">
+      <div class="welcome-icon">₸</div>
+      <div>
+        <h2>Добро пожаловать</h2>
+        <p>Авторизуйтесь через Keycloak, чтобы открыть рабочую панель.</p>
+      </div>
+      <button type="button" class="btn-primary" (click)="login()">Войти в PayLite</button>
+    </section>
+  }
+
+  @if (isAgent()) {
+    <section class="dashboard-grid">
+      <article class="balance-card">
+        <div class="card-label">Доступный баланс</div>
+        @if (balance() !== null) {
+          <div class="balance-value">{{ formatTiyin(balance()!) }} <span>тийин</span></div>
+          <div class="balance-subtitle">≈ {{ formatSom(balance()!) }} сум</div>
+        } @else {
+          <div class="skeleton-line"></div>
+        }
+        <button type="button" class="btn-ghost" (click)="refreshAgentData()">Обновить</button>
+      </article>
+
+      <article class="form-card">
+        <div class="card-heading">
+          <div>
+            <span class="card-label">Новая операция</span>
+            <h2>Создать платёж</h2>
+          </div>
+          <span class="card-icon">→</span>
+        </div>
+
+        @if (paymentStep() === 'details') {
+          <form [formGroup]="paymentForm" (ngSubmit)="checkPayment()">
+            <label for="payment-recipient">Услуга</label>
+            <select id="payment-recipient" formControlName="recipientId" (change)="selectRecipient()">
+              <option [ngValue]="null" disabled>Выберите услугу</option>
+              @for (recipient of recipients(); track recipient.id) {
+                <option [ngValue]="recipient.id">{{ recipient.categoryName }} — {{ recipient.name }}</option>
+              }
+            </select>
+            @if (paymentForm.controls.recipientId.touched && paymentForm.controls.recipientId.invalid) {
+              <small class="field-error">Выберите услугу.</small>
+            }
+
+            @if (recipientFields().length > 0) {
+              <div [formGroup]="fieldForm">
+                @for (field of recipientFields(); track field.id) {
+                  <label [for]="'payment-field-' + field.id">{{ field.label }}</label>
+                  @if (field.type === 'SELECT') {
+                    <select [id]="'payment-field-' + field.id" [formControlName]="field.name" (change)="fieldChanged()">
+                      <option value="" disabled>Выберите значение</option>
+                      @for (option of availableValues(field); track option.id) {
+                        <option [value]="option.value">{{ option.label }}</option>
+                      }
+                    </select>
+                  } @else {
+                    <input
+                      [id]="'payment-field-' + field.id"
+                      [type]="fieldInputType(field)"
+                      [formControlName]="field.name"
+                      [placeholder]="field.label"
+                      (input)="fieldChanged()"
+                    />
+                  }
+                  @if (fieldForm.get(field.name)?.touched && fieldForm.get(field.name)?.invalid) {
+                    <small class="field-error">Проверьте значение поля «{{ field.label }}».</small>
+                  }
+                }
+              </div>
+            }
+
+            <button
+              type="submit"
+              class="btn-primary btn-block"
+              [disabled]="checking() || paymentForm.invalid || recipientFields().length === 0"
+            >
+              {{ checking() ? 'Проверка…' : 'Проверить реквизиты' }}
+            </button>
+          </form>
+        } @else {
+          <div class="payment-confirmation">
+            <div class="confirmation-status">✓ Реквизиты проверены</div>
+            <dl>
+              <div>
+                <dt>Услуга</dt>
+                <dd>{{ checkResult()?.recipientName ?? selectedRecipient()?.name }}</dd>
+              </div>
+              @for (field of recipientFields(); track field.id) {
+                <div>
+                  <dt>{{ field.label }}</dt>
+                  <dd>{{ fieldForm.get(field.name)?.value }}</dd>
+                </div>
+              }
+            </dl>
+
+            <form [formGroup]="amountForm" (ngSubmit)="createPayment()">
+              <label for="payment-amount">Сумма в тийинах</label>
+              <input id="payment-amount" type="number" min="1" step="1" formControlName="amount" placeholder="10000" />
+              @if (amountForm.controls.amount.touched && amountForm.controls.amount.invalid) {
+                <small class="field-error">Сумма должна быть больше нуля.</small>
+              }
+              <small class="amount-note">Комиссия будет рассчитана и списана дополнительно.</small>
+
+              <div class="confirmation-actions">
+                <button type="button" class="btn-ghost" [disabled]="submitting()" (click)="editPaymentDetails()">Изменить</button>
+                <button type="submit" class="btn-primary" [disabled]="submitting()">
+                  {{ submitting() ? 'Обработка…' : 'Подтвердить и оплатить' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        }
+      </article>
+    </section>
+
+    <section class="payments-card">
+      <div class="section-heading">
+        <div>
+          <span class="card-label">История операций</span>
+          <h2>Мои платежи</h2>
+        </div>
+        <span class="counter">{{ totalElements() }} платежей</span>
+      </div>
+
+      @if (loading()) {
+        <div class="empty-state">Загрузка платежей…</div>
+      } @else if (payments().length === 0) {
+        <div class="empty-state">Платежей пока нет. Создайте первую операцию.</div>
+      } @else {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Счёт</th>
+                <th>Сумма</th>
+                <th>Комиссия</th>
+                <th>Итого</th>
+                <th>Статус</th>
+                <th>Дата</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (payment of payments(); track payment.id) {
+                <tr>
+                  <td data-label="Счёт">
+                    <strong>{{ payment.account }}</strong>
+                  </td>
+                  <td data-label="Сумма">{{ formatTiyin(payment.amount) }}</td>
+                  <td data-label="Комиссия">{{ formatTiyin(payment.commissionAmount) }}</td>
+                  <td data-label="Итого">{{ formatTiyin(payment.totalAmount) }}</td>
+                  <td data-label="Статус">
+                    <span
+                      class="status"
+                      [class.status-paid]="payment.status === 'PAID'"
+                      [class.status-failed]="payment.status === 'FAILED'"
+                    >
+                      {{ payment.status }}
+                    </span>
+                  </td>
+                  <td data-label="Дата">{{ payment.createdDate | date: 'dd.MM.yyyy, HH:mm' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-bar">
+          <button type="button" class="btn-ghost" [disabled]="page() === 0" (click)="previousPage()">← Назад</button>
+          <span>Страница {{ page() + 1 }} из {{ totalPages() }}</span>
+          <button type="button" class="btn-ghost" [disabled]="page() + 1 >= totalPages()" (click)="nextPage()">Вперёд →</button>
+        </div>
+      }
+    </section>
+  }
+
+  @if (isAdmin()) {
+    <section class="admin-card catalog-sync-card">
+      <div class="admin-copy">
+        <span class="card-label">Каталог Paynet</span>
+        <h2>Синхронизация услуг</h2>
+        <p>Загрузить категории, услуги, поля и доступные значения из Paynet в локальную базу PayLite.</p>
+      </div>
+
+      <div class="admin-action">
+        @if (catalogSync(); as sync) {
+          <div class="sync-summary">
+            Последняя синхронизация: {{ sync.recipientsProcessed }} услуг, {{ sync.fieldsProcessed }} полей,
+            {{ sync.valuesProcessed }} значений.
+          </div>
+        }
+        <button type="button" class="btn-primary" [disabled]="syncingCatalog()" (click)="syncPaynetCatalog()">
+          {{ syncingCatalog() ? 'Синхронизация…' : 'Синхронизировать каталог' }}
+        </button>
+      </div>
+    </section>
+
+    <section class="admin-card">
+      <div class="admin-copy">
+        <span class="card-label">Панель администратора</span>
+        <h2>Пополнение баланса пользователя</h2>
+        <p>Выберите зарегистрированного агента и укажите сумму пополнения.</p>
+      </div>
+
+      <form [formGroup]="topUpForm" (ngSubmit)="topUp()">
+        <div>
+          <label for="agent-id">Пользователь</label>
+          <select id="agent-id" formControlName="agentId">
+            <option [ngValue]="null" disabled>Выберите пользователя</option>
+            @for (agent of agents(); track agent.id) {
+              <option [ngValue]="agent.id">{{ agent.login }} — {{ formatTiyin(agent.balance) }} тийин</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label for="topup-amount">Сумма в тийинах</label>
+          <input id="topup-amount" type="number" min="1" step="1" formControlName="amount" placeholder="50000" />
+        </div>
+        <button type="submit" class="btn-primary" [disabled]="submitting()">
+          {{ submitting() ? 'Пополнение…' : 'Пополнить баланс' }}
+        </button>
+      </form>
+    </section>
+  }
+</main>

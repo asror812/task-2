@@ -1,0 +1,26 @@
+entity Agent {
+  login String required unique,
+  balance Long required
+}
+
+entity Payment {
+  account String required,
+  amount Long required,
+  commissionAmount Long,
+  totalAmount Long,
+  status PaymentStatus required,
+  createdDate Instant
+}
+
+enum PaymentStatus {
+  PAID,
+  FAILED
+}
+
+relationship ManyToOne {
+  Payment{agent} to Agent
+}
+
+dto Agent, Payment with mapstruct
+service Agent, Payment with serviceClass
+paginate Agent, Payment with pagination

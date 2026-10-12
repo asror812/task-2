@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261009100000-1-create-recipient-field-value" author="paynet">
+        <createTable tableName="recipient_field_value">
+            <column name="id" type="bigint">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="field_value" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="varchar(150)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="boolean">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_field_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="parent_id" type="bigint"/>
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="recipient_field_value"
+            columnNames="recipient_field_id, field_value"
+            constraintName="ux_recipient_field_value__field_value"/>
+        <addForeignKeyConstraint
+            baseTableName="recipient_field_value"
+            baseColumnNames="recipient_field_id"
+            referencedTableName="recipient_field"
+            referencedColumnNames="id"
+            constraintName="fk_recipient_field_value__recipient_field_id"/>
+        <addForeignKeyConstraint
+            baseTableName="recipient_field_value"
+            baseColumnNames="parent_id"
+            referencedTableName="recipient_field_value"
+            referencedColumnNames="id"
+            constraintName="fk_recipient_field_value__parent_id"/>
+        <createIndex tableName="recipient_field_value" indexName="idx_recipient_field_value__parent_id">
+            <column name="parent_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20261009100000-2-mark-region-district-as-select" author="paynet">
+        <update tableName="recipient_field">
+            <column name="type" value="SELECT"/>
+            <where>
+                recipient_id IN (SELECT id FROM recipient WHERE code IN ('GAS', 'ELECTRICITY'))
+                AND name IN ('region', 'regionId', 'district', 'districtId')
+            </where>
+        </update>
+    </changeSet>
+
+    <changeSet id="20261009100000-3-migrate-region-district-values" author="paynet" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="region"/>
+                <tableExists tableName="district"/>
+            </and>
+        </preConditions>
+        <sql>
+            INSERT INTO recipient_field_value
+                (id, field_value, label, active, sort_order, recipient_field_id, parent_id)
+            SELECT
+                nextval('sequence_generator'),
+                region.id::text,
+                region.name,
+                region.is_active,
+                region.id,
+                field.id,
+                NULL
+            FROM region
+            JOIN recipient ON recipient.code IN ('GAS', 'ELECTRICITY')
+            JOIN recipient_field field
+              ON field.recipient_id = recipient.id
+             AND field.name IN ('region', 'regionId');
+
+            INSERT INTO recipient_field_value
+                (id, field_value, label, active, sort_order, recipient_field_id, parent_id)
+            SELECT
+                nextval('sequence_generator'),
+                district.id::text,
+                district.name,
+                district.is_active,
+                district.id,
+                district_field.id,
+                parent_value.id
+            FROM district
+            JOIN region ON region.id = district.region_id
+            JOIN recipient ON recipient.code IN ('GAS', 'ELECTRICITY')
+            JOIN recipient_field district_field
+              ON district_field.recipient_id = recipient.id
+             AND district_field.name IN ('district', 'districtId')
+            JOIN recipient_field region_field
+              ON region_field.recipient_id = recipient.id
+             AND region_field.name IN ('region', 'regionId')
+            JOIN recipient_field_value parent_value
+              ON parent_value.recipient_field_id = region_field.id
+             AND parent_value.field_value = region.id::text;
+        </sql>
+    </changeSet>
+
+    <changeSet id="20261009100000-4-drop-district" author="paynet">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="district"/>
+        </preConditions>
+        <dropTable tableName="district" cascadeConstraints="true"/>
+    </changeSet>
+
+    <changeSet id="20261009100000-5-drop-region" author="paynet">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="region"/>
+        </preConditions>
+        <dropTable tableName="region" cascadeConstraints="true"/>
+    </changeSet>
+</databaseChangeLog>

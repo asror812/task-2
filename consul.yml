@@ -1,0 +1,28 @@
+name: consul
+services:
+  consul:
+    image: consul:1.15.4
+    container_name: consul-server
+    ports:
+      - 8500:8500
+      - 8600:8600/udp
+    command: >
+      consul agent 
+      -server 
+      -ui 
+      -node=server-1
+      -bootstrap-expect=1
+      -client=0.0.0.0
+      -datacenter=dc1
+      -data-dir=/consul/data
+    volumes:
+      - consul-data:/consul/data
+    networks:
+      - general
+
+volumes:
+  consul-data:
+
+networks:
+  general:
+    external: true

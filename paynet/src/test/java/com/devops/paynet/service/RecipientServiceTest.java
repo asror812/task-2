@@ -1,0 +1,205 @@
+package com.devops.paynet.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.devops.paynet.domain.Category;
+import com.devops.paynet.domain.Recipient;
+import com.devops.paynet.domain.RecipientField;
+import com.devops.paynet.domain.RecipientFieldValue;
+import com.devops.paynet.domain.enumeration.RecipientFieldMethod;
+import com.devops.paynet.domain.enumeration.RecipientFieldType;
+import com.devops.paynet.repository.RecipientFieldValueRepository;
+import com.devops.paynet.repository.RecipientRepository;
+import com.devops.paynet.repository.CategoryRepository;
+import com.devops.paynet.dto.CheckRequestDto;
+import com.devops.paynet.dto.CheckResponseDto;
+import com.devops.paynet.dto.RecipientCreateDto;
+import com.devops.paynet.dto.RecipientResponseDto;
+import com.devops.paynet.mapper.RecipientMapper;
+import com.devops.paynet.web.rest.errors.BadRequestAlertException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+
+@ExtendWith(MockitoExtension.class)
+class RecipientServiceTest {
+
+    @Mock
+    private RecipientRepository recipientRepository;
+
+    @Mock
+    private CategoryRepository categoryRepository;
+
+    private final RecipientMapper recipientMapper = new RecipientMapper() {};
+
+    @Mock
+    private RecipientFieldValueRepository recipientFieldValueRepository;
+
+    @Mock
+    private StringRedisTemplate redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+
+    private RecipientService service;
+    private Recipient recipient;
+    private RecipientField regionField;
+    private RecipientField districtField;
+    private RecipientFieldValue tashkent;
+    private RecipientFieldValue yunusabad;
+
+    @BeforeEach
+    void setUp() {
+        service = new RecipientService(
+            recipientRepository,
+            categoryRepository,
+            recipientMapper,
+            recipientFieldValueRepository,
+            redisTemplate,
+            new ObjectMapper()
+        );
+
+        recipient = new Recipient();
+        recipient.setId(3L);
+        recipient.setCode("GAS");
+        recipient.setName("Gas");
+        recipient.setActive(true);
+
+        regionField = selectField(7L, "regionId");
+        districtField = selectField(8L, "districtId");
+        recipient.setRecipientFields(List.of(regionField, districtField));
+
+        tashkent = option(101L, "1", regionField, null);
+        yunusabad = option(201L, "10", districtField, tashkent);
+
+        lenient().when(recipientRepository.findOneWithFields(3L)).thenReturn(Optional.of(recipient));
+    }
+
+    @Test
+    void createsRecipientWithCategoryLoadedFromDatabase() {
+        RecipientCreateDto request = new RecipientCreateDto("Beeline", "BEELINE", true, 5L);
+        Category category = new Category();
+        category.setId(5L);
+        category.setName("Mobile operators");
+        when(categoryRepository.findById(5L)).thenReturn(Optional.of(category));
+        when(recipientRepository.save(any(Recipient.class))).thenAnswer(invocation -> {
+            Recipient saved = invocation.getArgument(0);
+            saved.setId(10L);
+            return saved;
+        });
+
+        RecipientResponseDto response = service.save(request);
+
+        assertThat(response.id()).isEqualTo(10L);
+        assertThat(response.categoryId()).isEqualTo(5L);
+        assertThat(response.categoryName()).isEqualTo("Mobile operators");
+    }
+
+    @Test
+    void rejectsRecipientWhenCategoryDoesNotExist() {
+        RecipientCreateDto request = new RecipientCreateDto("Beeline", "BEELINE", true, 999L);
+        when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.save(request))
+            .isInstanceOf(BadRequestAlertException.class)
+            .satisfies(exception -> assertThat(((BadRequestAlertException) exception).getStatusCode().value()).isEqualTo(400));
+        verify(recipientRepository, never()).save(any(Recipient.class));
+    }
+
+    @Test
+    void acceptsActiveChildOptionBelongingToSelectedParent() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(recipientFieldValueRepository.findOneByRecipientField_IdAndValueAndActiveTrue(7L, "1"))
+            .thenReturn(Optional.of(tashkent));
+        when(recipientFieldValueRepository.findOneByRecipientField_IdAndValueAndActiveTrue(8L, "10"))
+            .thenReturn(Optional.of(yunusabad));
+
+        CheckResponseDto response = service.checkRecipient(
+            3L,
+            new CheckRequestDto(Map.of("regionId", "1", "districtId", "10"))
+        );
+
+        assertThat(response.isValid()).isTrue();
+        assertThat(response.getCheckId()).isNotBlank();
+        assertThat(response.getErrors()).isEmpty();
+    }
+
+    @Test
+    void rejectsChildOptionWhenItsParentWasNotSelected() {
+        when(recipientFieldValueRepository.findOneByRecipientField_IdAndValueAndActiveTrue(7L, "2"))
+            .thenReturn(Optional.of(option(102L, "2", regionField, null)));
+        when(recipientFieldValueRepository.findOneByRecipientField_IdAndValueAndActiveTrue(8L, "10"))
+            .thenReturn(Optional.of(yunusabad));
+
+        CheckResponseDto response = service.checkRecipient(
+            3L,
+            new CheckRequestDto(Map.of("regionId", "2", "districtId", "10"))
+        );
+
+        assertThat(response.isValid()).isFalse();
+        assertThat(response.getErrors()).contains("districtId does not belong to selected regionId");
+    }
+
+    @Test
+    void rejectsUnknownSelectOption() {
+        when(recipientFieldValueRepository.findOneByRecipientField_IdAndValueAndActiveTrue(eq(7L), any()))
+            .thenReturn(Optional.empty());
+        when(recipientFieldValueRepository.findOneByRecipientField_IdAndValueAndActiveTrue(eq(8L), any()))
+            .thenReturn(Optional.empty());
+
+        CheckResponseDto response = service.checkRecipient(
+            3L,
+            new CheckRequestDto(Map.of("regionId", "999", "districtId", "999"))
+        );
+
+        assertThat(response.isValid()).isFalse();
+        assertThat(response.getErrors())
+            .contains("regionId contains an unsupported value", "districtId contains an unsupported value");
+    }
+
+    private RecipientField selectField(Long id, String name) {
+        RecipientField field = new RecipientField();
+        field.setId(id);
+        field.setName(name);
+        field.setLabel(name);
+        field.setType(RecipientFieldType.SELECT);
+        field.setMethod(RecipientFieldMethod.CHECK);
+        field.setRequired(true);
+        field.setActive(true);
+        field.setSortOrder(id.intValue());
+        field.setRecipient(recipient);
+        return field;
+    }
+
+    private RecipientFieldValue option(
+        Long id,
+        String value,
+        RecipientField field,
+        RecipientFieldValue parent
+    ) {
+        RecipientFieldValue option = new RecipientFieldValue();
+        option.setId(id);
+        option.setValue(value);
+        option.setLabel(value);
+        option.setActive(true);
+        option.setSortOrder(id.intValue());
+        option.setRecipientField(field);
+        option.setParent(parent);
+        return option;
+    }
+}

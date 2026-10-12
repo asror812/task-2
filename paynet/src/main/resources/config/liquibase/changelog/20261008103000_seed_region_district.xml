@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261008103000-1-seed-regions" author="paynet">
+        <loadData
+            file="config/liquibase/data/regions.csv"
+            separator=","
+            tableName="region"
+            relativeToChangelogFile="false">
+            <column name="id" type="numeric"/>
+            <column name="code" type="string"/>
+            <column name="name" type="string"/>
+            <column name="created_at" type="date"/>
+            <column name="updated_at" type="date"/>
+            <column name="is_active" type="boolean"/>
+        </loadData>
+    </changeSet>
+
+    <changeSet id="20261008103000-2-seed-districts" author="paynet">
+        <loadData
+            file="config/liquibase/data/districts.csv"
+            separator=","
+            tableName="district"
+            relativeToChangelogFile="false">
+            <column name="id" type="numeric"/>
+            <column name="region_id" type="numeric"/>
+            <column name="name" type="string"/>
+            <column name="soato_code" type="string"/>
+            <column name="created_at" type="date"/>
+            <column name="updated_at" type="date"/>
+            <column name="is_active" type="boolean"/>
+        </loadData>
+    </changeSet>
+</databaseChangeLog>

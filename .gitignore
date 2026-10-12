@@ -1,0 +1,23 @@
+# IDE
+.idea/
+**/.idea/
+*.iml
+
+# Java / Maven build files
+*.class
+**/target/
+**/out/
+
+# Node / Angular build files
+**/node_modules/
+**/.angular/
+**/dist/
+
+# Logs and local environment
+*.log
+.env
+.env.*
+
+# Operating system files
+.DS_Store
+Thumbs.db

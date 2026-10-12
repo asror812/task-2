@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <property name="now" value="current_timestamp" dbms="postgresql"/>
+    <property name="floatType" value="float4" dbms="postgresql"/>
+    <property name="clobType" value="clob" dbms="postgresql"/>
+    <property name="blobType" value="blob" dbms="postgresql"/>
+    <property name="uuidType" value="uuid" dbms="postgresql"/>
+    <property name="datetimeType" value="datetime" dbms="postgresql"/>
+    <property name="timeType" value="time(6)" dbms="postgresql"/>
+
+    <include file="config/liquibase/changelog/00000000000000_initial_schema.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261007052525_added_entity_Category.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261007052526_added_entity_Recipient.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261007052527_added_entity_RecipientField.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261008101400_add_region_entity.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261019101400_add_district_entity.xml" relativeToChangelogFile="false"/>
+    <!-- jhipster-needle-liquibase-add-changelog - JHipster will add liquibase changelogs here -->
+    <include file="config/liquibase/changelog/20261007052526_added_entity_constraints_Recipient.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261007052527_added_entity_constraints_RecipientField.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261007103100_seed_data_paynet.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261008103000_seed_region_district.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261008120000_update_paynet_check_fields.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261009100000_replace_region_district_with_field_values.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261012100000_activate_seed_payment_services.xml" relativeToChangelogFile="false"/>
+    <!-- jhipster-needle-liquibase-add-constraints-changelog - JHipster will add liquibase constraints changelogs here -->
+    <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
+</databaseChangeLog>

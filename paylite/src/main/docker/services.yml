@@ -1,0 +1,14 @@
+name: paylite
+services:
+  postgresql:
+    extends:
+      file: ./postgresql.yml
+      service: postgresql
+#  app:
+#    extends:
+#      file: ./app.yml
+#      service: app
+
+#networks:
+#  general:
+#    external: true

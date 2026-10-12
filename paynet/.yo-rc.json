@@ -1,0 +1,33 @@
+{
+  "generator-jhipster": {
+    "applicationType": "microservice",
+    "authenticationType": "oauth2",
+    "baseName": "paynet",
+    "buildTool": "maven",
+    "cacheProvider": "no",
+    "creationTimestamp": 1791313757796,
+    "databaseType": "sql",
+    "defaultCommand": "app",
+    "devDatabaseType": "postgresql",
+    "enableHibernateCache": false,
+    "enableTranslation": false,
+    "entities": ["Category", "Recipient", "RecipientField"],
+    "jhipsterVersion": "9.4.0",
+    "jwtSecretKey": "NmE5NmU1MTEzZjU3ZjVjYjljNTY0ZjM1NjFjODAyODEwNjc4Mjg3YmRjOGFhYjM1MDIyMWE3Y2Q0NTEyZDNhMGI5MTFkYWM5MDA3OGI0OGVkNTI4MTNkZmQ1MjdhM2FiNTkxNjY5NTkyYTY3MjcxNmExYWI0ZGIzZTgxYTcwZDY=",
+    "lastLiquibaseTimestamp": 1791350727000,
+    "nativeLanguage": "en",
+    "packageName": "com.devops.paynet",
+    "prodDatabaseType": "postgresql",
+    "promptValues": {
+      "nativeLanguage": "en"
+    },
+    "reactive": false,
+    "serverPort": null,
+    "serviceDiscoveryType": "consul",
+    "skipClient": true,
+    "skipFakeData": true,
+    "skipUserManagement": true,
+    "syncUserWithIdp": false,
+    "withAdminUi": true
+  }
+}

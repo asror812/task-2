@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261012160000-1" author="codex">
+        <createTable tableName="paynet_recipient_field">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="paynet_id" type="bigint">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_paynet_recipient_field__paynet_id"/>
+            </column>
+            <column name="name" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="validation_regex" type="varchar(255)"/>
+            <column name="method" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="boolean">
+                <constraints nullable="false"/>
+            </column>
+            <column name="required" type="boolean">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_synced_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="paynet_recipient_field"
+            baseColumnNames="recipient_id"
+            referencedTableName="paynet_recipient"
+            referencedColumnNames="id"
+            constraintName="fk_paynet_recipient_field__recipient"/>
+
+        <createIndex tableName="paynet_recipient_field" indexName="idx_paynet_recipient_field__recipient_id">
+            <column name="recipient_id"/>
+        </createIndex>
+
+        <createTable tableName="paynet_recipient_field_value">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="paynet_id" type="bigint">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_paynet_recipient_field_value__paynet_id"/>
+            </column>
+            <column name="field_value" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="varchar(150)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="boolean">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_field_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="parent_id" type="bigint"/>
+            <column name="last_synced_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="paynet_recipient_field_value"
+            baseColumnNames="recipient_field_id"
+            referencedTableName="paynet_recipient_field"
+            referencedColumnNames="id"
+            constraintName="fk_paynet_recipient_field_value__field"/>
+
+        <addForeignKeyConstraint
+            baseTableName="paynet_recipient_field_value"
+            baseColumnNames="parent_id"
+            referencedTableName="paynet_recipient_field_value"
+            referencedColumnNames="id"
+            constraintName="fk_paynet_recipient_field_value__parent"/>
+
+        <createIndex tableName="paynet_recipient_field_value" indexName="idx_paynet_recipient_field_value__field_id">
+            <column name="recipient_field_id"/>
+        </createIndex>
+
+        <createIndex tableName="paynet_recipient_field_value" indexName="idx_paynet_recipient_field_value__parent_id">
+            <column name="parent_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

@@ -1,0 +1,17 @@
+services:
+  consul:
+    extends:
+      file: ./consul.yml
+      service: consul
+
+  keycloak:
+    extends:
+      file: ./keycloak.yml
+      service: keycloak
+
+volumes:
+    consul-data:
+
+networks:
+  general:
+    external: true

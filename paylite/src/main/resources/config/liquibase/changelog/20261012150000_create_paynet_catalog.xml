@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261012150000-1" author="codex">
+        <createTable tableName="paynet_category">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="paynet_id" type="bigint">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_paynet_category__paynet_id"/>
+            </column>
+            <column name="name" type="varchar(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_paynet_category__name"/>
+            </column>
+            <column name="active" type="boolean">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_synced_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="paynet_recipient">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="paynet_id" type="bigint">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_paynet_recipient__paynet_id"/>
+            </column>
+            <column name="name" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="code" type="varchar(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_paynet_recipient__code"/>
+            </column>
+            <column name="active" type="boolean">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_synced_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="paynet_recipient"
+            baseColumnNames="category_id"
+            referencedTableName="paynet_category"
+            referencedColumnNames="id"
+            constraintName="fk_paynet_recipient__category"/>
+
+        <createIndex tableName="paynet_recipient" indexName="idx_paynet_recipient__category_id">
+            <column name="category_id"/>
+        </createIndex>
+
+        <createTable tableName="paynet_catalog_sync">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="status" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="started_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="finished_at" type="${datetimeType}"/>
+            <column name="categories_processed" type="bigint"/>
+            <column name="recipients_processed" type="bigint"/>
+            <column name="fields_processed" type="bigint"/>
+            <column name="values_processed" type="bigint"/>
+            <column name="error_message" type="varchar(1000)"/>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

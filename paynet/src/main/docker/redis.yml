@@ -1,0 +1,7 @@
+name: paynet-redis
+services:
+  redis:
+    image: redis:7.2.0
+    container_name: paynet-redis
+    ports:
+      - "6379:6379"

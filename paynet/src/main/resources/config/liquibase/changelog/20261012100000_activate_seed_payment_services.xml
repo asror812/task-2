@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261012100000-1-activate-seed-payment-services" author="paynet">
+        <update tableName="category">
+            <column name="active" valueBoolean="true"/>
+            <where>name IN ('Mobile Operators', 'Utilities')</where>
+        </update>
+        <update tableName="recipient">
+            <column name="active" valueBoolean="true"/>
+            <where>code IN ('UCELL', 'BEELINE', 'GAS', 'ELECTRICITY')</where>
+        </update>
+    </changeSet>
+</databaseChangeLog>

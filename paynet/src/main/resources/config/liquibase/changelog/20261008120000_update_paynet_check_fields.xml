@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261008120000-1-update-gas-field-names" author="paynet">
+        <update tableName="recipient_field">
+            <column name="name" value="regionId"/>
+            <where>recipient_id = 3 AND name = 'region' AND method = 'CHECK'</where>
+        </update>
+
+        <update tableName="recipient_field">
+            <column name="name" value="districtId"/>
+            <where>recipient_id = 3 AND name = 'district' AND method = 'CHECK'</where>
+        </update>
+
+        <update tableName="recipient_field">
+            <column name="name" value="regionId"/>
+            <where>recipient_id = 4 AND name = 'region' AND method = 'CHECK'</where>
+        </update>
+
+        <update tableName="recipient_field">
+            <column name="name" value="districtId"/>
+            <where>recipient_id = 4 AND name = 'district' AND method = 'CHECK'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="20261008120000-2-activate-check-fields" author="paynet">
+        <update tableName="recipient_field">
+            <column name="active" valueBoolean="true"/>
+            <where>method = 'CHECK'</where>
+        </update>
+    </changeSet>
+</databaseChangeLog>
