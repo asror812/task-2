@@ -9,8 +9,10 @@ import java.util.Map;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString(onlyExplicitlyIncluded = true)
 public class PaymentCreateRequestDto {
 
+    @ToString.Include
     @NotNull(message = "PaynetRecipient ID is required")
     private Long recipientId;
 
@@ -27,6 +29,7 @@ public class PaymentCreateRequestDto {
     @Size(max = 255)
     private String account;
 
+    @ToString.Include
     @Positive
     @NotNull
     private Long amount;

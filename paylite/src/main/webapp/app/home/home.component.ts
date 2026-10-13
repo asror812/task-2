@@ -69,8 +69,13 @@ export default class HomeComponent implements OnInit {
   private readonly loginService = inject(LoginService);
   private readonly api = inject(PayliteApiService);
   private idempotencyKey: string | null = null;
+  private topUpIdempotencyKey: string | null = null;
 
   ngOnInit(): void {
+    this.topUpForm.valueChanges.subscribe(() => {
+      this.topUpIdempotencyKey = null;
+    });
+
     this.accountService.identity().subscribe(account => {
       this.account.set(account);
       if (account?.authorities.includes(Authority.AGENT)) {
@@ -225,13 +230,18 @@ export default class HomeComponent implements OnInit {
 
     const agentId = Number(this.topUpForm.controls.agentId.value);
     const amount = this.topUpForm.controls.amount.value!;
+    this.topUpIdempotencyKey ??= crypto.randomUUID();
     this.clearFeedback();
     this.submitting.set(true);
 
-    this.api.topUp(agentId, amount).subscribe({
-      next: () => {
+    this.api.topUp(agentId, amount, this.topUpIdempotencyKey).subscribe({
+      next: result => {
         const agent = this.agents().find(item => item.id === agentId);
-        this.message.set(`Баланс пользователя ${agent?.login ?? `#${agentId}`} пополнен на ${this.formatTiyin(amount)} тийин.`);
+        this.message.set(
+          `Баланс пользователя ${agent?.login ?? `#${agentId}`} пополнен на ${this.formatTiyin(result.amount)} тийин. ` +
+            `Новый баланс: ${this.formatTiyin(result.balanceAfter)} тийин.`,
+        );
+        this.topUpIdempotencyKey = null;
         this.topUpForm.reset();
         this.loadAgents();
         this.submitting.set(false);

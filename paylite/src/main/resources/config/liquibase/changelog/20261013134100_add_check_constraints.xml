@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261013134100-1" author="jhipster">
+        <sql>
+            ALTER TABLE payment
+            ADD CONSTRAINT chk_payment_amount CHECK (amount > 0),
+            ADD CONSTRAINT chk_payment_commission_amount CHECK (commission_amount >= 0),
+            ADD CONSTRAINT chk_payment_total_amount CHECK (total_amount > 0);
+
+            ALTER TABLE agent
+            ADD CONSTRAINT chk_agent_balance CHECK (balance >= 0);
+            ALTER TABLE payment
+            ADD CONSTRAINT chk_payment_agent_id CHECK (agent_id IS NOT NULL);
+
+            ALTER TABLE top_up_ledger
+            ADD CONSTRAINT chk_top_up_ledger_amount CHECK (amount > 0),
+            ADD CONSTRAINT chk_top_up_ledger_balance_before CHECK (balance_before >= 0),
+            ADD CONSTRAINT chk_top_up_ledger_balance_after CHECK (balance_after >= 0);
+        </sql>
+    </changeSet>
+</databaseChangeLog>

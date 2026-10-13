@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261013134200-1" author="jhipster">
+        <preConditions onFail="HALT" onError="HALT">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM payment WHERE agent_id IS NULL
+            </sqlCheck>
+        </preConditions>
+
+        <sql>
+            ALTER TABLE payment ALTER COLUMN agent_id SET NOT NULL;
+            ALTER TABLE payment DROP CONSTRAINT IF EXISTS chk_payment_agent_id;
+        </sql>
+    </changeSet>
+</databaseChangeLog>

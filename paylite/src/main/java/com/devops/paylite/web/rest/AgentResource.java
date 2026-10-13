@@ -4,6 +4,7 @@ import com.devops.paylite.service.AgentService;
 import com.devops.paylite.service.dto.AgentDTO;
 import com.devops.paylite.service.dto.BalanceResponseDto;
 import com.devops.paylite.service.dto.TopUpRequestDto;
+import com.devops.paylite.service.dto.TopUpResponseDto;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -41,11 +42,9 @@ public class AgentResource {
 
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping("/{id}/topup")
-    public ResponseEntity<Void> topUp(@PathVariable Long id, @Valid @RequestBody TopUpRequestDto dto) {
+    public ResponseEntity<TopUpResponseDto> topUp(@PathVariable Long id, @Valid @RequestBody TopUpRequestDto dto) {
         LOG.debug("REST request to top up Agent: {}", id);
 
-        agentService.topUp(id, dto);
-
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(agentService.topUp(id, dto));
     }
 }

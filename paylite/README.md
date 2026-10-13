@@ -32,14 +32,18 @@ Spring Data JPA repository'lari
 PostgreSQL
 
 Keycloak  -> autentifikatsiya va ROLE_AGENT / ROLE_ADMIN
-Consul    -> payment.commission-percent
+Consul    -> payment.commission-percent, payment.min-amount, payment.max-amount
+Paynet    -> xizmatlar katalogi, to'lovni tekshirish va bajarish
 Liquibase -> sxema migratsiyalari va boshlang'ich Agent yozuvlari
 ```
 
-Domen faqat ikki ta entity'dan iborat:
+Asosiy entity'lar:
 
 - `Agent`: Keycloak foydalanuvchi logini va uning tiyindagi balansi.
 - `Payment`: hisob raqami, summa, komissiya, umumiy summa, holat, yaratilgan vaqt va egasi bo'lgan agent.
+- `TopUpLedger`: administrator bajargan balans to'ldirishlar auditi.
+- `PaynetCategory`, `PaynetRecipient`, `PaynetRecipientField`, `PaynetRecipientFieldValue`: lokal Paynet katalogi.
+- `PaynetCatalogSync`: katalog sinxronizatsiyasi natijasi va vaqti.
 
 Keycloak'dagi foydalanuvchi nomi (`preferred_username`) `Agent.login` bilan bog'lanadi.
 
@@ -65,15 +69,17 @@ Hisoblangan komissiya `RoundingMode.HALF_UP` yordamida eng yaqin butun tiyingach
 - Balans umumiy summaga teng yoki undan katta bo'lsa, summa balansdan yechiladi va to'lov `PAID` holatida saqlanadi.
 - Balans yetarli bo'lmasa, balans o'zgarmaydi va to'lov `FAILED` holatida saqlanadi; API HTTP `422` qaytaradi.
 - Balansdan yechish va to'lovni saqlash bitta `@Transactional` service operatsiyasi ichida bajariladi. Saqlashda xato yuz bersa, tranzaksiya rollback qilinadi.
-- Mijoz hisob raqami aynan 16 ta raqamdan iborat bo'lishi kerak. To'lov va top-up summalari musbat bo'lishi shart.
+- Hisob raqami va xizmat maydonlari tanlangan Paynet xizmati orqali tekshiriladi. To'lov va top-up summalari musbat bo'lishi shart.
 - Agent faqat autentifikatsiyadan o'tgan o'z loginiga tegishli to'lovlarni ko'ra oladi.
 
 ## Lokal ishga tushirish
 
 ### 1. PostgreSQL, Keycloak va Consul'ni ishga tushirish
 
+Loyihaning asosiy papkasida:
+
 ```bash
-docker compose -f src/main/docker/services.yml up -d --wait
+./start.sh
 ```
 
 Servislar quyidagi manzillarda ishlaydi:
@@ -86,16 +92,36 @@ Servislar quyidagi manzillarda ishlaydi:
 
 ### 2. Consul'ga komissiya qiymatini qo'shish
 
-Consul UI orqali `config/paylite/payment.commission-percent` kalitini `1.5` qiymati bilan yarating yoki quyidagi buyruqni bajaring:
+Consul UI orqali quyidagi qiymatlarni yarating:
+
+```text
+config/paylite-service/payment.commission-percent = 1.5
+config/paylite-service/payment.min-amount = 100
+config/paylite-service/payment.max-amount = 100000000
+```
+
+Yoki quyidagi buyruqlarni bajaring:
 
 ```bash
 curl --request PUT --data '1.5' \
-  http://localhost:8500/v1/kv/config/paylite/payment.commission-percent
+  http://localhost:8500/v1/kv/config/paylite-service/payment.commission-percent
+
+curl --request PUT --data '100' \
+  http://localhost:8500/v1/kv/config/paylite-service/payment.min-amount
+
+curl --request PUT --data '100000000' \
+  http://localhost:8500/v1/kv/config/paylite-service/payment.max-amount
 ```
 
-Ilova qiymatni `@ConfigurationProperties(prefix = "payment")` orqali oladi. Qiymatni o'zgartirgandan keyin backend'ni qayta ishga tushiring. `@RefreshScope` orqali restart'siz yangilash ixtiyoriy bonus bo'lib, hozircha alohida yoqilmagan.
+Ilova qiymatlarni `@ConfigurationProperties(prefix = "payment")` orqali oladi. Lokal muhitda qiymat o'zgartirilgandan keyin backend'ni qayta ishga tushirish eng aniq usul hisoblanadi.
 
 ### 3. Backend'ni ishga tushirish
+
+Paynet OAuth2 client secret'ini environment variable orqali bering:
+
+```bash
+export PAYNET_CLIENT_SECRET='<Keycloak paylite-service client secret>'
+```
 
 ```bash
 ./mvnw
@@ -121,28 +147,42 @@ Brauzerda `http://localhost:9000` manzilini oching.
 | `agent`       | `agent` | `ROLE_AGENT` |                 2 |   100 000 000 tiyin |
 | `admin`       | `admin` | `ROLE_ADMIN` |                 1 |             0 tiyin |
 
-Keycloak realm konteyner yaratilganda `src/main/docker/realm-config/jhipster-realm.json` faylidan import qilinadi.
-
-Realm'ni qaytadan import qilish uchun:
-
-```bash
-docker compose -f src/main/docker/keycloak.yml down
-docker compose -f src/main/docker/keycloak.yml up -d
-```
+Keycloak realm umumiy loyihadagi `realm-config` papkasidan import qilinadi.
 
 ## API
 
 | Method | Endpoint                       | Rol          | Tavsif                                   |
 | ------ | ------------------------------ | ------------ | ---------------------------------------- |
+| `GET`  | `/api/payments/catalog/recipients` | `ROLE_AGENT` | Lokal katalogdagi faol xizmatlar     |
+| `GET`  | `/api/payments/catalog/recipients/{id}/fields` | `ROLE_AGENT` | Xizmatning CHECK maydonlari |
+| `POST` | `/api/payments/check`          | `ROLE_AGENT` | Paynet orqali maydonlarni tekshirish     |
 | `POST` | `/api/payments`                | `ROLE_AGENT` | Yangi to'lov yaratish                    |
 | `GET`  | `/api/payments?page=0&size=10` | `ROLE_AGENT` | Joriy agent to'lovlarini sahifalab olish |
 | `GET`  | `/api/agents/me/balance`       | `ROLE_AGENT` | Joriy agent balansini olish              |
 | `POST` | `/api/agents/{id}/topup`       | `ROLE_ADMIN` | Agent balansini to'ldirish               |
+| `POST` | `/api/admin/paynet-catalog/sync` | `ROLE_ADMIN` | Paynet katalogini qo'lda sinxronlash   |
+
+To'lovni tekshirish so'rovi:
+
+```json
+{
+  "recipientId": 2,
+  "fields": {
+    "account": "8600123412341234"
+  }
+}
+```
 
 To'lov yaratish so'rovi:
 
 ```json
 {
+  "recipientId": 2,
+  "idempotencyKey": "550e8400-e29b-41d4-a716-446655440000",
+  "checkId": "paynet-check-id",
+  "fields": {
+    "account": "8600123412341234"
+  },
   "account": "8600123412341234",
   "amount": 4000000
 }
@@ -152,22 +192,15 @@ Balansni to'ldirish so'rovi:
 
 ```json
 {
-  "amount": 1000000
+  "amount": 1000000,
+  "idempotencyKey": "18b7d63e-53a3-4c5c-930b-ae7a03de2948"
 }
 ```
 
-## Testlar
-
-Biznes mantiqning asosiy testlarini ishga tushirish:
-
-```bash
-./mvnw test
-```
-
-Payment service testlari komissiya hisobini, muvaffaqiyatli to'lovda balans yechilishini va balans yetishmaganda to'lov `FAILED` bo'lib, balans o'zgarmasligini tekshiradi.
-
 ## Infrastrukturani to'xtatish
 
+Loyihaning asosiy papkasida:
+
 ```bash
-docker compose -f src/main/docker/services.yml down
+./down.sh
 ```

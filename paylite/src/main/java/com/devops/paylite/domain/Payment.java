@@ -57,7 +57,8 @@ public class Payment implements Serializable {
     @Column(name = "created_date")
     private Instant createdDate;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "agent_id", nullable = false)
     private Agent agent;
 
     @Override

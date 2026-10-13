@@ -20,6 +20,7 @@
     <include file="config/liquibase/changelog/20261008123000_add_payment_idempotency.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261012150000_create_paynet_catalog.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261012160000_create_paynet_recipient_fields.xml" relativeToChangelogFile="false"/>
-    <!-- jhipster-needle-liquibase-add-constraints-changelog - JHipster will add liquibase constraints changelogs here -->
-    <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
+    <include file="config/liquibase/changelog/20261013133600_create_top_up_ledger.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261013134100_add_check_constraints.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261013134200_set_payment_agent_not_null.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

@@ -148,8 +148,18 @@ public class PaymentService {
             if (existingPayment.getAgent() == null || !login.equals(existingPayment.getAgent().getLogin())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key already used");
             }
+            if (
+                !dto.getAmount().equals(existingPayment.getAmount()) ||
+                !dto.getAccount().equals(existingPayment.getAccount()) ||
+                !dto.getCheckId().equals(existingPayment.getCheckId())
+            ) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key already used for another payment");
+            }
+
             return paymentMapper.toDto(existingPayment);
         }
+
+        validateAmount(dto.getAmount());
 
         long commissionAmount = calculateCommission(dto.getAmount());
         long totalAmount = calculateTotalAmount(dto.getAmount(), commissionAmount);
@@ -164,9 +174,12 @@ public class PaymentService {
             );
 
             if (!paynetPayResponseDto.isPaid()) {
+                List<String> errors = paynetPayResponseDto.getErrors() == null ? List.of() : paynetPayResponseDto.getErrors();
+                String message = errors.isEmpty() ? "Paynet payment failed" : "Paynet payment failed: " + String.join(", ", errors);
+
                 throw new ResponseStatusException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
-                    "Paynet payment failed: " + String.join(", ", paynetPayResponseDto.getErrors())
+                    message
                 );
             }
         }
@@ -205,14 +218,30 @@ public class PaymentService {
     }
 
     private long calculateCommission(long amount) {
+        BigDecimal commissionPercent = validateCommissionPercent();
+
         try {
             return BigDecimal.valueOf(amount)
-                .multiply(paymentProperties.getCommissionPercent())
+                .multiply(commissionPercent)
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP)
                 .longValueExact();
         } catch (ArithmeticException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payment amount is too large", exception);
         }
+    }
+
+    private BigDecimal validateCommissionPercent() {
+        BigDecimal commissionPercent = paymentProperties.getCommissionPercent();
+
+        if (
+            commissionPercent == null ||
+            commissionPercent.compareTo(BigDecimal.ZERO) < 0 ||
+            commissionPercent.compareTo(BigDecimal.valueOf(100)) > 0
+        ) {
+            throw new IllegalStateException("Commission percent must be between 0 and 100");
+        }
+
+        return commissionPercent;
     }
 
     private long calculateTotalAmount(long amount, long commissionAmount) {
@@ -227,5 +256,21 @@ public class PaymentService {
         return paymentCheckMapper.toPaymentCheckResponse(
             paynetServiceClient.check(createDto.getRecipientId(), paymentCheckMapper.toPaynetCheckRequest(createDto))
         );
+    }
+
+    private void validateAmount(long amount) {
+        if (amount < paymentProperties.getMinAmount()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Payment amount is below the minimum limit"
+            );
+        }
+
+        if (amount > paymentProperties.getMaxAmount()) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Payment amount exceeds the maximum limit"
+            );
+        }
     }
 }

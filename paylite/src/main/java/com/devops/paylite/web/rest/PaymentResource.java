@@ -19,7 +19,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -79,7 +79,7 @@ public class PaymentResource {
         PaymentDTO paymentDTO = paymentService.create(createDto);
 
         if (paymentDTO.getStatus() == PaymentStatus.FAILED) {
-            return ResponseEntity.status(HttpStatusCode.valueOf(422)).body(paymentDTO);
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(paymentDTO);
         }
 
         return ResponseEntity.created(new URI("/api/payments/" + paymentDTO.getId()))

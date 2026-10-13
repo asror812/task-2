@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261013132300-1" author="jhipster">
+        <createTable tableName="top_up_ledger">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="admin_login" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="agent_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_before" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_after" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="idempotency_key" type="varchar(100)">
+                <constraints
+                    nullable="false"
+                    unique="true"
+                    uniqueConstraintName="ux_top_up_ledger__idempotency_key"/>
+            </column>
+            <column name="created_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="top_up_ledger"
+            baseColumnNames="agent_id"
+            referencedTableName="agent"
+            referencedColumnNames="id"
+            constraintName="fk_top_up_ledger__agent"/>
+
+        <createIndex tableName="top_up_ledger" indexName="idx_top_up_ledger__agent_id">
+            <column name="agent_id"/>
+        </createIndex>
+
+        <createIndex tableName="top_up_ledger" indexName="idx_top_up_ledger__created_at">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

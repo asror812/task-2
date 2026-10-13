@@ -53,11 +53,17 @@ Brauzerda Consul'ni oching:
 http://localhost:8500
 ```
 
-`Key/Value` bo'limida quyidagi qiymatni yarating:
+`Key/Value` bo'limida quyidagi qiymatlarni yarating:
 
 ```text
 Key:   config/paylite-service/payment.commission-percent
 Value: 1.5
+
+Key:   config/paylite-service/payment.min-amount
+Value: 100
+
+Key:   config/paylite-service/payment.max-amount
+Value: 100000000
 ```
 
 Yoki terminal orqali:
@@ -65,9 +71,15 @@ Yoki terminal orqali:
 ```bash
 curl --request PUT --data '1.5' \
   http://localhost:8500/v1/kv/config/paylite-service/payment.commission-percent
+
+curl --request PUT --data '100' \
+  http://localhost:8500/v1/kv/config/paylite-service/payment.min-amount
+
+curl --request PUT --data '100000000' \
+  http://localhost:8500/v1/kv/config/paylite-service/payment.max-amount
 ```
 
-`1.5` — komissiya 1.5 foiz ekanini bildiradi.
+`1.5` — komissiya 1.5 foiz ekanini bildiradi. Minimal va maksimal summa tiyinda beriladi.
 
 ## 4. Paynet backend'ni ishga tushirish
 
@@ -90,6 +102,7 @@ Yana bir terminal oching:
 
 ```bash
 cd paylite
+export PAYNET_CLIENT_SECRET='<Keycloak paylite-service client secret>'
 ./mvnw
 ```
 
@@ -144,7 +157,7 @@ Qisqacha tartib:
 | `admin` | `admin` | `ROLE_ADMIN` |
 | `agent` | `agent` | `ROLE_AGENT` |
 
-Admin katalogni Paynet'dan qo'lda sinxronizatsiya qilishi va agent balansini to'ldirishi mumkin. Agent esa xizmatni tanlab to'lov qiladi.
+Admin katalogni Paynet'dan qo'lda sinxronizatsiya qilishi va agent balansini idempotency key bilan to'ldirishi mumkin. Agent lokal katalogdan xizmatni tanlaydi, uning maydonlarini to'ldiradi, Paynet orqali tekshiradi va UUID idempotency key bilan to'lov qiladi.
 
 ## Loyihani to'xtatish
 
@@ -153,4 +166,3 @@ Backend va frontend terminallarida `Ctrl+C` bosing. Keyin asosiy papkada:
 ```bash
 ./down.sh
 ```
-

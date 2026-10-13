@@ -36,6 +36,15 @@ export interface Agent {
   balance: number;
 }
 
+export interface TopUpResponse {
+  id: number;
+  agentId: number;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  createdAt: string;
+}
+
 export interface Recipient {
   id: number;
   name: string;
@@ -139,8 +148,8 @@ export class PayliteApiService {
     return this.http.post<Payment>(this.paymentsUrl, request);
   }
 
-  topUp(agentId: number, amount: number): Observable<unknown> {
-    return this.http.post(`${this.agentsUrl}/${agentId}/topup`, { amount });
+  topUp(agentId: number, amount: number, idempotencyKey: string): Observable<TopUpResponse> {
+    return this.http.post<TopUpResponse>(`${this.agentsUrl}/${agentId}/topup`, { amount, idempotencyKey });
   }
 
   syncPaynetCatalog(): Observable<PaynetCatalogSyncResponse> {
