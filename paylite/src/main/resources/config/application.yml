@@ -75,7 +75,7 @@ spring:
   config:
     import: 'optional:consul:'
   application:
-    name: paylite
+    name: paylite-service
   docker:
     compose:
       enabled: false
