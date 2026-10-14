@@ -63,7 +63,6 @@ public class PaymentDTO implements Serializable {
     public String toString() {
         return "PaymentDTO{" +
             "id=" + getId() +
-            ", account='" + getAccount() + "'" +
             ", amount=" + getAmount() +
             ", commissionAmount=" + getCommissionAmount() +
             ", totalAmount=" + getTotalAmount() +

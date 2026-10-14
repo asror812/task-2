@@ -83,9 +83,6 @@ public class Payment implements Serializable {
             "Payment{" +
             "id=" +
             getId() +
-            ", account='" +
-            getAccount() +
-            "'" +
             ", amount=" +
             getAmount() +
             ", commissionAmount=" +

@@ -1,7 +1,9 @@
 package com.devops.paylite.web.rest;
 
 import com.devops.paylite.security.SecurityUtils;
+import com.devops.paylite.web.rest.errors.AccountResourceException;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
+
 import java.security.Principal;
 import java.util.Map;
 import java.util.Set;
@@ -23,15 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class AccountResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(AccountResource.class);
-
-    private static class AccountResourceException extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        private AccountResourceException(String message) {
-            super(message);
-        }
-    }
 
     /**
      * {@code GET  /account} : get the current user.
@@ -107,4 +100,5 @@ public class AccountResource {
             SecurityUtils.extractDetailsFromTokenAttributes(attributes)
         );
     }
+
 }

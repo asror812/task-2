@@ -39,8 +39,8 @@ public class PaymentResource {
 
     @PreAuthorize("hasAuthority('ROLE_AGENT')")
     @GetMapping("/catalog/recipients")
-    public ResponseEntity<List<RecipientCatalogDto>> getRecipients() {
-        return ResponseEntity.ok(paymentService.getRecipients());
+    public ResponseEntity<Page<RecipientCatalogDto>> getRecipients(@ParameterObject Pageable pageable) {
+        return ResponseEntity.ok(paymentService.getRecipients(pageable));
     }
 
     @PreAuthorize("hasAuthority('ROLE_AGENT')")

@@ -69,7 +69,7 @@ Hisoblangan komissiya `RoundingMode.HALF_UP` yordamida eng yaqin butun tiyingach
 - Balans umumiy summaga teng yoki undan katta bo'lsa, summa balansdan yechiladi va to'lov `PAID` holatida saqlanadi.
 - Balans yetarli bo'lmasa, balans o'zgarmaydi va to'lov `FAILED` holatida saqlanadi; API HTTP `422` qaytaradi.
 - Balansdan yechish va to'lovni saqlash bitta `@Transactional` service operatsiyasi ichida bajariladi. Saqlashda xato yuz bersa, tranzaksiya rollback qilinadi.
-- Hisob raqami va xizmat maydonlari tanlangan Paynet xizmati orqali tekshiriladi. To'lov va top-up summalari musbat bo'lishi shart.
+- Hisob raqami va xizmat maydonlari tanlangan Paynet xizmati orqali tekshiriladi. To'lov va top-up summalari musbat bo'lishi shart. Top-up uchun yuqori chegara `TOP_UP_MAX_AMOUNT` orqali sozlanadi (standart qiymat: `100000000` tiyin).
 - Agent faqat autentifikatsiyadan o'tgan o'z loginiga tegishli to'lovlarni ko'ra oladi.
 
 ## Lokal ishga tushirish
@@ -153,14 +153,18 @@ Keycloak realm umumiy loyihadagi `realm-config` papkasidan import qilinadi.
 
 | Method | Endpoint                       | Rol          | Tavsif                                   |
 | ------ | ------------------------------ | ------------ | ---------------------------------------- |
-| `GET`  | `/api/payments/catalog/recipients` | `ROLE_AGENT` | Lokal katalogdagi faol xizmatlar     |
+| `GET`  | `/api/payments/catalog/recipients?page=0&size=20` | `ROLE_AGENT` | Lokal katalogdagi faol xizmatlar |
 | `GET`  | `/api/payments/catalog/recipients/{id}/fields` | `ROLE_AGENT` | Xizmatning CHECK maydonlari |
 | `POST` | `/api/payments/check`          | `ROLE_AGENT` | Paynet orqali maydonlarni tekshirish     |
 | `POST` | `/api/payments`                | `ROLE_AGENT` | Yangi to'lov yaratish                    |
 | `GET`  | `/api/payments?page=0&size=10` | `ROLE_AGENT` | Joriy agent to'lovlarini sahifalab olish |
 | `GET`  | `/api/agents/me/balance`       | `ROLE_AGENT` | Joriy agent balansini olish              |
+| `GET`  | `/api/agents?page=0&size=20`   | `ROLE_ADMIN` | Agentlarni sahifalab olish                |
 | `POST` | `/api/agents/{id}/topup`       | `ROLE_ADMIN` | Agent balansini to'ldirish               |
 | `POST` | `/api/admin/paynet-catalog/sync` | `ROLE_ADMIN` | Paynet katalogini qo'lda sinxronlash   |
+| `GET`  | `/api/admin/paynet-catalog/latest` | `ROLE_ADMIN` | Oxirgi sinxronizatsiya natijasi      |
+
+Paynet katalogi standart holatda har kuni soat `02:00` da (`Asia/Tashkent`) avtomatik sinxronlashtiriladi. Jadvalni `PAYNET_CATALOG_SYNC_CRON` va vaqt zonasini `PAYNET_CATALOG_SYNC_ZONE` orqali o'zgartirish mumkin.
 
 To'lovni tekshirish so'rovi:
 

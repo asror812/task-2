@@ -230,3 +230,11 @@ payment:
   commission-percent: ${PAYMENT_COMMISSION_PERCENT:1.5}
   min-amount: ${PAYMENT_MIN_AMOUNT:100}
   max-amount: ${PAYMENT_MAX_AMOUNT:100000000}
+
+top-up:
+  max-amount: ${TOP_UP_MAX_AMOUNT:100000000}
+
+paynet:
+  catalog-sync:
+    cron: ${PAYNET_CATALOG_SYNC_CRON:0 0 2 * * *}
+    zone: ${PAYNET_CATALOG_SYNC_ZONE:Asia/Tashkent}

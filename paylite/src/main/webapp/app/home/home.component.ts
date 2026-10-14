@@ -39,6 +39,12 @@ export default class HomeComponent implements OnInit {
   readonly pageSize = 10;
   readonly totalPages = signal(0);
   readonly totalElements = signal(0);
+  readonly recipientPage = signal(0);
+  readonly recipientTotalPages = signal(0);
+  readonly recipientPageSize = 20;
+  readonly agentPage = signal(0);
+  readonly agentTotalPages = signal(0);
+  readonly agentPageSize = 20;
   readonly loading = signal(false);
   readonly submitting = signal(false);
   readonly checking = signal(false);
@@ -84,6 +90,7 @@ export default class HomeComponent implements OnInit {
       }
       if (account?.authorities.includes(Authority.ADMIN)) {
         this.loadAgents();
+        this.loadLatestCatalogSync();
       }
     });
   }
@@ -293,6 +300,40 @@ export default class HomeComponent implements OnInit {
     }
   }
 
+  previousRecipientPage(): void {
+    if (this.recipientPage() > 0) {
+      this.recipientPage.update(value => value - 1);
+      this.paymentForm.controls.recipientId.reset();
+      this.selectRecipient();
+      this.loadRecipients();
+    }
+  }
+
+  nextRecipientPage(): void {
+    if (this.recipientPage() + 1 < this.recipientTotalPages()) {
+      this.recipientPage.update(value => value + 1);
+      this.paymentForm.controls.recipientId.reset();
+      this.selectRecipient();
+      this.loadRecipients();
+    }
+  }
+
+  previousAgentPage(): void {
+    if (this.agentPage() > 0) {
+      this.agentPage.update(value => value - 1);
+      this.topUpForm.controls.agentId.reset();
+      this.loadAgents();
+    }
+  }
+
+  nextAgentPage(): void {
+    if (this.agentPage() + 1 < this.agentTotalPages()) {
+      this.agentPage.update(value => value + 1);
+      this.topUpForm.controls.agentId.reset();
+      this.loadAgents();
+    }
+  }
+
   refreshAgentData(): void {
     this.loadBalance();
     this.loadPayments();
@@ -319,9 +360,23 @@ export default class HomeComponent implements OnInit {
   }
 
   private loadRecipients(): void {
-    this.api.getRecipients().subscribe({
-      next: recipients => this.recipients.set(recipients),
+    this.api.getRecipients(this.recipientPage(), this.recipientPageSize).subscribe({
+      next: response => {
+        this.recipients.set(response.content);
+        this.recipientTotalPages.set(response.totalPages);
+      },
       error: response => this.error.set(this.readError(response)),
+    });
+  }
+
+  private loadLatestCatalogSync(): void {
+    this.api.getLatestPaynetCatalogSync().subscribe({
+      next: result => this.catalogSync.set(result),
+      error: (response: HttpErrorResponse) => {
+        if (response.status !== 404) {
+          this.error.set(this.readError(response));
+        }
+      },
     });
   }
 
@@ -364,8 +419,11 @@ export default class HomeComponent implements OnInit {
   }
 
   private loadAgents(): void {
-    this.api.getAgents().subscribe({
-      next: agents => this.agents.set(agents),
+    this.api.getAgents(this.agentPage(), this.agentPageSize).subscribe({
+      next: response => {
+        this.agents.set(response.content);
+        this.agentTotalPages.set(response.totalPages);
+      },
       error: response => this.error.set(this.readError(response)),
     });
   }

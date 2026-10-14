@@ -57,24 +57,12 @@ public class PaymentService {
     private final PaynetRecipientFieldRepository paynetRecipientFieldRepository;
 
     @Transactional(readOnly = true)
-    public List<RecipientCatalogDto> getRecipients() {
+    public Page<RecipientCatalogDto> getRecipients(Pageable pageable) {
         return paynetRecipientRepository
-            .findAllByActiveTrueOrderByNameAsc()
-            .stream()
-            .map(this::toRecipientCatalogDto)
-            .toList();
+            .findAllByActiveTrueOrderByNameAsc(pageable)
+            .map(this::toRecipientCatalogDto);
     }
 
-    private RecipientCatalogDto toRecipientCatalogDto(PaynetRecipient recipient) {
-        return new RecipientCatalogDto(
-            recipient.getPaynetId(),
-            recipient.getName(),
-            recipient.getCode(),
-            recipient.getActive(),
-            recipient.getCategory().getName(),
-            recipient.getCategory().getPaynetId()
-        );
-    }
 
     @Transactional(readOnly = true)
     public List<RecipientFieldCatalogDto> getRecipientFields(Long recipientId) {
@@ -86,44 +74,6 @@ public class PaymentService {
             .stream()
             .map(this::toRecipientFieldCatalogDto)
             .toList();
-    }
-
-    private RecipientFieldCatalogDto toRecipientFieldCatalogDto(PaynetRecipientField field) {
-        PaynetRecipient recipient = field.getRecipient();
-        List<RecipientFieldValueCatalogDto> values = field
-            .getValues()
-            .stream()
-            .filter(value -> Boolean.TRUE.equals(value.getActive()))
-            .map(this::toRecipientFieldValueCatalogDto)
-            .toList();
-
-        return new RecipientFieldCatalogDto(
-            field.getPaynetId(),
-            field.getName(),
-            field.getLabel(),
-            field.getValidationRegex(),
-            field.getMethod().name(),
-            field.getActive(),
-            field.getRequired(),
-            field.getType().name(),
-            field.getSortOrder(),
-            recipient.getPaynetId(),
-            recipient.getName(),
-            recipient.getCategory().getName(),
-            values
-        );
-    }
-
-    private RecipientFieldValueCatalogDto toRecipientFieldValueCatalogDto(PaynetRecipientFieldValue value) {
-        return new RecipientFieldValueCatalogDto(
-            value.getPaynetId(),
-            value.getValue(),
-            value.getLabel(),
-            value.getActive(),
-            value.getSortOrder(),
-            value.getRecipientField().getPaynetId(),
-            value.getParent() == null ? null : value.getParent().getPaynetId()
-        );
     }
 
     /**
@@ -272,5 +222,42 @@ public class PaymentService {
                 "Payment amount exceeds the maximum limit"
             );
         }
+    }
+
+
+    private RecipientFieldCatalogDto toRecipientFieldCatalogDto(PaynetRecipientField field) {
+        PaynetRecipient recipient = field.getRecipient();
+        List<RecipientFieldValueCatalogDto> values = field
+            .getValues()
+            .stream()
+            .filter(value -> Boolean.TRUE.equals(value.getActive()))
+            .map(this::toRecipientFieldValueCatalogDto)
+            .toList();
+
+        return new RecipientFieldCatalogDto(
+            field.getPaynetId(),
+            field.getName(),
+            field.getLabel(),
+            field.getValidationRegex(),
+            field.getMethod().name(),
+            field.getActive(),
+            field.getRequired(),
+            field.getType().name(),
+            field.getSortOrder(),
+            recipient.getPaynetId(),
+            recipient.getName(),
+            recipient.getCategory().getName(),
+            values
+        );
+    }
+
+
+    private RecipientCatalogDto toRecipientCatalogDto(PaynetRecipient recipient) {
+        return new RecipientCatalogDto(recipient.getPaynetId(), recipient.getName(), recipient.getCode(), recipient.getActive(), recipient.getCategory().getName(), recipient.getCategory().getPaynetId());
+    }
+
+
+    private RecipientFieldValueCatalogDto toRecipientFieldValueCatalogDto(PaynetRecipientFieldValue value) {
+        return new RecipientFieldValueCatalogDto(value.getPaynetId(), value.getValue(), value.getLabel(), value.getActive(), value.getSortOrder(), value.getRecipientField().getPaynetId(), value.getParent() == null ? null : value.getParent().getPaynetId());
     }
 }

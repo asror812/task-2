@@ -437,6 +437,16 @@ table {
   font-size: 0.85rem;
 }
 
+.collection-pagination {
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+
+  .btn-ghost {
+    padding: 0.45rem 0.65rem;
+  }
+}
+
 .admin-card {
   display: grid;
   grid-template-columns: 0.8fr 1.2fr;

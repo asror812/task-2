@@ -1,5 +1,6 @@
 package com.devops.paylite.service;
 
+import com.devops.paylite.config.TopUpProperties;
 import com.devops.paylite.domain.Agent;
 import com.devops.paylite.domain.TopUpLedger;
 import com.devops.paylite.repository.AgentRepository;
@@ -11,10 +12,11 @@ import com.devops.paylite.service.dto.TopUpRequestDto;
 import com.devops.paylite.service.dto.TopUpResponseDto;
 import com.devops.paylite.mapper.AgentMapper;
 import java.time.Instant;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,10 +31,11 @@ public class AgentService {
     private final AgentRepository agentRepository;
     private final TopUpLedgerRepository topUpLedgerRepository;
     private final AgentMapper agentMapper;
+    private final TopUpProperties topUpProperties;
 
     @Transactional(readOnly = true)
-    public List<AgentDTO> getAll() {
-        return agentRepository.findAllByOrderByLoginAsc().stream().map(agentMapper::toDto).toList();
+    public Page<AgentDTO> getAll(Pageable pageable) {
+        return agentRepository.findAllByOrderByLoginAsc(pageable).map(agentMapper::toDto);
     }
 
     @Transactional(readOnly = true)
@@ -70,6 +73,8 @@ public class AgentService {
             return toTopUpResponse(existingLedger);
         }
 
+        validateTopUpAmount(dto.amount());
+
         Long balanceBefore = agent.getBalance();
         Long balanceAfter;
 
@@ -92,6 +97,12 @@ public class AgentService {
 
         agentRepository.save(agent);
         return toTopUpResponse(topUpLedgerRepository.save(topUpLedger));
+    }
+
+    private void validateTopUpAmount(Long amount) {
+        if (amount > topUpProperties.getMaxAmount()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Top-up amount exceeds the maximum limit");
+        }
     }
 
     private TopUpResponseDto toTopUpResponse(TopUpLedger ledger) {

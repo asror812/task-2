@@ -16,8 +16,8 @@ export interface Payment {
   createdDate: string;
 }
 
-export interface PaymentPage {
-  content: Payment[];
+export interface PageResponse<T> {
+  content: T[];
   totalElements: number;
   totalPages: number;
   number: number;
@@ -25,6 +25,10 @@ export interface PaymentPage {
   first: boolean;
   last: boolean;
 }
+
+export type PaymentPage = PageResponse<Payment>;
+export type AgentPage = PageResponse<Agent>;
+export type RecipientPage = PageResponse<Recipient>;
 
 export interface BalanceResponse {
   balance: number;
@@ -123,12 +127,14 @@ export class PayliteApiService {
     return this.http.get<BalanceResponse>(`${this.agentsUrl}/me/balance`);
   }
 
-  getAgents(): Observable<Agent[]> {
-    return this.http.get<Agent[]>(this.agentsUrl);
+  getAgents(page: number, size: number): Observable<AgentPage> {
+    const params = new HttpParams().set('page', page).set('size', size);
+    return this.http.get<AgentPage>(this.agentsUrl, { params });
   }
 
-  getRecipients(): Observable<Recipient[]> {
-    return this.http.get<Recipient[]>(`${this.paymentsUrl}/catalog/recipients`);
+  getRecipients(page: number, size: number): Observable<RecipientPage> {
+    const params = new HttpParams().set('page', page).set('size', size);
+    return this.http.get<RecipientPage>(`${this.paymentsUrl}/catalog/recipients`, { params });
   }
 
   getRecipientFields(recipientId: number): Observable<RecipientField[]> {
@@ -154,5 +160,9 @@ export class PayliteApiService {
 
   syncPaynetCatalog(): Observable<PaynetCatalogSyncResponse> {
     return this.http.post<PaynetCatalogSyncResponse>(`${this.paynetCatalogUrl}/sync`, {});
+  }
+
+  getLatestPaynetCatalogSync(): Observable<PaynetCatalogSyncResponse> {
+    return this.http.get<PaynetCatalogSyncResponse>(`${this.paynetCatalogUrl}/latest`);
   }
 }

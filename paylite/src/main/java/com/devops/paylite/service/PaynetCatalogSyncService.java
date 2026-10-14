@@ -11,8 +11,10 @@ import com.devops.paylite.web.rest.PaynetServiceClient;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +25,11 @@ public class PaynetCatalogSyncService {
     private final PaynetServiceClient paynetServiceClient;
     private final PaynetCatalogWriter paynetCatalogWriter;
     private final PaynetCatalogSyncRepository paynetCatalogSyncRepository;
+
+    @Transactional(readOnly = true)
+    public Optional<PaynetCatalogSyncResponseDto> getLatest() {
+        return paynetCatalogSyncRepository.findTopByOrderByStartedAtDesc().map(this::toResponse);
+    }
 
     public PaynetCatalogSyncResponseDto sync() {
         PaynetCatalogSync run = paynetCatalogSyncRepository.save(

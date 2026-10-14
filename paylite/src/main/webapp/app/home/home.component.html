@@ -65,6 +65,22 @@
                 <option [ngValue]="recipient.id">{{ recipient.categoryName }} — {{ recipient.name }}</option>
               }
             </select>
+            @if (recipientTotalPages() > 1) {
+              <div class="pagination-bar collection-pagination">
+                <button type="button" class="btn-ghost" [disabled]="recipientPage() === 0" (click)="previousRecipientPage()">
+                  ← Назад
+                </button>
+                <span>Страница {{ recipientPage() + 1 }} из {{ recipientTotalPages() }}</span>
+                <button
+                  type="button"
+                  class="btn-ghost"
+                  [disabled]="recipientPage() + 1 >= recipientTotalPages()"
+                  (click)="nextRecipientPage()"
+                >
+                  Вперёд →
+                </button>
+              </div>
+            }
             @if (paymentForm.controls.recipientId.touched && paymentForm.controls.recipientId.invalid) {
               <small class="field-error">Выберите услугу.</small>
             }
@@ -211,9 +227,12 @@
       <div class="admin-action">
         @if (catalogSync(); as sync) {
           <div class="sync-summary">
-            Последняя синхронизация: {{ sync.recipientsProcessed }} услуг, {{ sync.fieldsProcessed }} полей,
+            Последняя синхронизация: {{ (sync.finishedAt ?? sync.startedAt) | date: 'dd.MM.yyyy HH:mm:ss' }} —
+            {{ sync.status }}. {{ sync.recipientsProcessed }} услуг, {{ sync.fieldsProcessed }} полей,
             {{ sync.valuesProcessed }} значений.
           </div>
+        } @else {
+          <div class="sync-summary">Каталог ещё не синхронизировался.</div>
         }
         <button type="button" class="btn-primary" [disabled]="syncingCatalog()" (click)="syncPaynetCatalog()">
           {{ syncingCatalog() ? 'Синхронизация…' : 'Синхронизировать каталог' }}
@@ -237,6 +256,20 @@
               <option [ngValue]="agent.id">{{ agent.login }} — {{ formatTiyin(agent.balance) }} тийин</option>
             }
           </select>
+          @if (agentTotalPages() > 1) {
+            <div class="pagination-bar collection-pagination">
+              <button type="button" class="btn-ghost" [disabled]="agentPage() === 0" (click)="previousAgentPage()">← Назад</button>
+              <span>Страница {{ agentPage() + 1 }} из {{ agentTotalPages() }}</span>
+              <button
+                type="button"
+                class="btn-ghost"
+                [disabled]="agentPage() + 1 >= agentTotalPages()"
+                (click)="nextAgentPage()"
+              >
+                Вперёд →
+              </button>
+            </div>
+          }
         </div>
         <div>
           <label for="topup-amount">Сумма в тийинах</label>

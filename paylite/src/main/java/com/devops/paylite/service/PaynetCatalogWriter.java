@@ -13,11 +13,7 @@ import com.devops.paylite.service.dto.load.PaynetRecipientLoadDto;
 import com.devops.paylite.service.dto.load.PaynetRecipientFieldLoadDto;
 import com.devops.paylite.service.dto.load.PaynetRecipientFieldValueLoadDto;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class PaynetCatalogWriter {
+
+    private static final int LOOKUP_BATCH_SIZE = 500;
 
     private final PaynetRecipientRepository paynetRecipientRepository;
     private final PaynetCategoryRepository paynetCategoryRepository;
@@ -47,12 +45,17 @@ public class PaynetCatalogWriter {
     }
 
     private Map<Long, PaynetCategory> writeCategories(List<PaynetCategoryLoadDto> categories, Instant syncedAt) {
-        Map<Long, PaynetCategory> existingByPaynetId = paynetCategoryRepository
-            .findAll()
+        Set<Long> incomingIds = categories.stream()
+            .map(PaynetCategoryLoadDto::getId)
+            .collect(Collectors.toSet());
+
+        Map<Long, PaynetCategory> existingByPaynetId = findExistingInBatches(
+            incomingIds,
+            paynetCategoryRepository::findAllByPaynetIdIn
+        )
             .stream()
             .collect(Collectors.toMap(PaynetCategory::getPaynetId, Function.identity()));
 
-        Set<Long> incomingIds = categories.stream().map(PaynetCategoryLoadDto::getId).collect(Collectors.toSet());
         List<PaynetCategory> batch = new ArrayList<>();
 
         for (PaynetCategoryLoadDto dto : categories) {
@@ -65,20 +68,13 @@ public class PaynetCatalogWriter {
             batch.add(entity);
         }
 
-        existingByPaynetId
-            .values()
-            .stream()
-            .filter(entity -> !incomingIds.contains(entity.getPaynetId()))
-            .forEach(entity -> {
-                entity.setActive(false);
-                entity.setLastSyncedAt(syncedAt);
-                batch.add(entity);
-            });
-
-        return paynetCategoryRepository
+        Map<Long, PaynetCategory> savedByPaynetId = paynetCategoryRepository
             .saveAll(batch)
             .stream()
             .collect(Collectors.toMap(PaynetCategory::getPaynetId, Function.identity()));
+
+        paynetCategoryRepository.deactivateNotSyncedAt(syncedAt);
+        return savedByPaynetId;
     }
 
     private Map<Long, PaynetRecipient> writeRecipients(
@@ -86,12 +82,15 @@ public class PaynetCatalogWriter {
         Map<Long, PaynetCategory> categoriesByPaynetId,
         Instant syncedAt
     ) {
-        Map<Long, PaynetRecipient> existingByPaynetId = paynetRecipientRepository
-            .findAll()
+
+        Set<Long> incomingIds = recipients.stream().map(PaynetRecipientLoadDto::getId).collect(Collectors.toSet());
+        Map<Long, PaynetRecipient> existingByPaynetId = findExistingInBatches(
+            incomingIds,
+            paynetRecipientRepository::findAllByPaynetIdIn
+        )
             .stream()
             .collect(Collectors.toMap(PaynetRecipient::getPaynetId, Function.identity()));
 
-        Set<Long> incomingIds = new HashSet<>();
         List<PaynetRecipient> batch = new ArrayList<>();
 
         for (PaynetRecipientLoadDto dto : recipients) {
@@ -102,7 +101,6 @@ public class PaynetCatalogWriter {
                 );
             }
 
-            incomingIds.add(dto.getId());
             PaynetRecipient entity = existingByPaynetId.getOrDefault(dto.getId(), new PaynetRecipient());
             entity.setPaynetId(dto.getId());
             entity.setName(dto.getName());
@@ -113,20 +111,13 @@ public class PaynetCatalogWriter {
             batch.add(entity);
         }
 
-        existingByPaynetId
-            .values()
-            .stream()
-            .filter(entity -> !incomingIds.contains(entity.getPaynetId()))
-            .forEach(entity -> {
-                entity.setActive(false);
-                entity.setLastSyncedAt(syncedAt);
-                batch.add(entity);
-            });
-
-        return paynetRecipientRepository
+        Map<Long, PaynetRecipient> savedByPaynetId = paynetRecipientRepository
             .saveAll(batch)
             .stream()
             .collect(Collectors.toMap(PaynetRecipient::getPaynetId, Function.identity()));
+
+        paynetRecipientRepository.deactivateNotSyncedAt(syncedAt);
+        return savedByPaynetId;
     }
 
     private Map<Long, PaynetRecipientField> writeFields(
@@ -134,12 +125,14 @@ public class PaynetCatalogWriter {
         Map<Long, PaynetRecipient> recipientsByPaynetId,
         Instant syncedAt
     ) {
-        Map<Long, PaynetRecipientField> existingByPaynetId = paynetRecipientFieldRepository
-            .findAll()
+        Set<Long> incomingIds = fields.stream().map(PaynetRecipientFieldLoadDto::getId).collect(Collectors.toSet());
+        Map<Long, PaynetRecipientField> existingByPaynetId = findExistingInBatches(
+            incomingIds,
+            paynetRecipientFieldRepository::findAllByPaynetIdIn
+        )
             .stream()
             .collect(Collectors.toMap(PaynetRecipientField::getPaynetId, Function.identity()));
 
-        Set<Long> incomingIds = new HashSet<>();
         List<PaynetRecipientField> batch = new ArrayList<>();
 
         for (PaynetRecipientFieldLoadDto dto : fields) {
@@ -150,7 +143,6 @@ public class PaynetCatalogWriter {
                 );
             }
 
-            incomingIds.add(dto.getId());
             PaynetRecipientField entity = existingByPaynetId.getOrDefault(dto.getId(), new PaynetRecipientField());
             entity.setPaynetId(dto.getId());
             entity.setName(dto.getName());
@@ -166,20 +158,12 @@ public class PaynetCatalogWriter {
             batch.add(entity);
         }
 
-        existingByPaynetId
-            .values()
-            .stream()
-            .filter(entity -> !incomingIds.contains(entity.getPaynetId()))
-            .forEach(entity -> {
-                entity.setActive(false);
-                entity.setLastSyncedAt(syncedAt);
-                batch.add(entity);
-            });
-
-        return paynetRecipientFieldRepository
+        Map<Long, PaynetRecipientField> savedByPaynetId = paynetRecipientFieldRepository
             .saveAll(batch)
             .stream()
             .collect(Collectors.toMap(PaynetRecipientField::getPaynetId, Function.identity()));
+        paynetRecipientFieldRepository.deactivateNotSyncedAt(syncedAt);
+        return savedByPaynetId;
     }
 
     private void writeFieldValues(
@@ -187,12 +171,20 @@ public class PaynetCatalogWriter {
         Map<Long, PaynetRecipientField> fieldsByPaynetId,
         Instant syncedAt
     ) {
-        Map<Long, PaynetRecipientFieldValue> existingByPaynetId = paynetRecipientFieldValueRepository
-            .findAll()
+        Set<Long> incomingIds = fields
+            .stream()
+            .map(PaynetRecipientFieldLoadDto::getValues)
+            .filter(java.util.Objects::nonNull)
+            .flatMap(List::stream)
+            .map(PaynetRecipientFieldValueLoadDto::getId)
+            .collect(Collectors.toSet());
+        Map<Long, PaynetRecipientFieldValue> existingByPaynetId = findExistingInBatches(
+            incomingIds,
+            paynetRecipientFieldValueRepository::findAllByPaynetIdIn
+        )
             .stream()
             .collect(Collectors.toMap(PaynetRecipientFieldValue::getPaynetId, Function.identity()));
 
-        Set<Long> incomingIds = new HashSet<>();
         Map<Long, Long> parentIdByValueId = new java.util.HashMap<>();
         List<PaynetRecipientFieldValue> batch = new ArrayList<>();
 
@@ -201,7 +193,6 @@ public class PaynetCatalogWriter {
             List<PaynetRecipientFieldValueLoadDto> values = fieldDto.getValues() == null ? List.of() : fieldDto.getValues();
 
             for (PaynetRecipientFieldValueLoadDto dto : values) {
-                incomingIds.add(dto.getId());
                 parentIdByValueId.put(dto.getId(), dto.getParentId());
 
                 PaynetRecipientFieldValue entity = existingByPaynetId.getOrDefault(
@@ -221,20 +212,11 @@ public class PaynetCatalogWriter {
             }
         }
 
-        existingByPaynetId
-            .values()
-            .stream()
-            .filter(entity -> !incomingIds.contains(entity.getPaynetId()))
-            .forEach(entity -> {
-                entity.setActive(false);
-                entity.setLastSyncedAt(syncedAt);
-                batch.add(entity);
-            });
-
         Map<Long, PaynetRecipientFieldValue> savedByPaynetId = paynetRecipientFieldValueRepository
             .saveAllAndFlush(batch)
             .stream()
             .collect(Collectors.toMap(PaynetRecipientFieldValue::getPaynetId, Function.identity()));
+        paynetRecipientFieldValueRepository.deactivateNotSyncedAt(syncedAt);
 
         List<PaynetRecipientFieldValue> valuesWithParents = new ArrayList<>();
         for (Map.Entry<Long, Long> entry : parentIdByValueId.entrySet()) {
@@ -251,5 +233,18 @@ public class PaynetCatalogWriter {
             valuesWithParents.add(value);
         }
         paynetRecipientFieldValueRepository.saveAll(valuesWithParents);
+    }
+
+    private <T> List<T> findExistingInBatches(
+        Set<Long> paynetIds,
+        Function<Collection<Long>, List<T>> loader
+    ) {
+        List<Long> ids = new ArrayList<>(paynetIds);
+        List<T> result = new ArrayList<>();
+        for (int from = 0; from < ids.size(); from += LOOKUP_BATCH_SIZE) {
+            int to = Math.min(from + LOOKUP_BATCH_SIZE, ids.size());
+            result.addAll(loader.apply(ids.subList(from, to)));
+        }
+        return result;
     }
 }
