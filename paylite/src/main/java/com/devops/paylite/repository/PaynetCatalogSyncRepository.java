@@ -16,8 +16,11 @@ public interface PaynetCatalogSyncRepository extends JpaRepository<PaynetCatalog
     @Modifying
     @Transactional
     @Query(
-        "update PaynetCatalogSync sync set sync.status = com.devops.paylite.domain.enumeration.SyncStatus.FAILED, " +
-        "sync.finishedAt = :now, sync.errorMessage = 'Synchronization lease expired' " +
+        "update PaynetCatalogSync sync " +
+        "set " +
+            "sync.status = com.devops.paylite.domain.enumeration.SyncStatus.FAILED, " +
+            "sync.finishedAt = :now, " +
+            "sync.errorMessage = 'Synchronization lease expired' " +
         "where sync.status = com.devops.paylite.domain.enumeration.SyncStatus.RUNNING and sync.startedAt < :cutoff"
     )
     int failStaleRunning(Instant cutoff, Instant now);

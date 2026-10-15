@@ -61,7 +61,9 @@ public class AgentService {
             .findByIdForUpdate(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Agent not found"));
 
-        TopUpLedger existingLedger = topUpLedgerRepository.findByIdempotencyKey(dto.idempotencyKey()).orElse(null);
+        TopUpLedger existingLedger = topUpLedgerRepository.findByIdempotencyKey(dto.idempotencyKey())
+            .orElse(null);
+
         if (existingLedger != null) {
             if (
                 !login.equals(existingLedger.getAdminLogin()) ||
@@ -72,6 +74,7 @@ public class AgentService {
             }
             return toTopUpResponse(existingLedger);
         }
+
 
         validateTopUpAmount(dto.amount());
 

@@ -48,12 +48,6 @@ server:
   # make sure requests the proxy uri instead of the server one
   forward-headers-strategy: native
 
-# ===================================================================
-# JHipster specific properties
-#
-# Full reference is available at: https://www.jhipster.tech/common-application-properties/
-# ===================================================================
-
 jhipster:
   # CORS is only enabled by default with the "dev" profile
   cors:
