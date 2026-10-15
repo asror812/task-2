@@ -154,7 +154,7 @@ Keycloak realm umumiy loyihadagi `realm-config` papkasidan import qilinadi.
 | Method | Endpoint                       | Rol          | Tavsif                                   |
 | ------ | ------------------------------ | ------------ | ---------------------------------------- |
 | `GET`  | `/api/payments/catalog/recipients?page=0&size=20` | `ROLE_AGENT` | Lokal katalogdagi faol xizmatlar |
-| `GET`  | `/api/payments/catalog/recipients/{id}/fields` | `ROLE_AGENT` | Xizmatning CHECK maydonlari |
+| `GET`  | `/api/payments/catalog/recipients/{id}/fields?method=CHECK` | `ROLE_AGENT` | Xizmatning `CHECK` yoki `PAY` maydonlari |
 | `POST` | `/api/payments/check`          | `ROLE_AGENT` | Paynet orqali maydonlarni tekshirish     |
 | `POST` | `/api/payments`                | `ROLE_AGENT` | Yangi to'lov yaratish                    |
 | `GET`  | `/api/payments?page=0&size=10` | `ROLE_AGENT` | Joriy agent to'lovlarini sahifalab olish |
@@ -164,6 +164,9 @@ Keycloak realm umumiy loyihadagi `realm-config` papkasidan import qilinadi.
 | `POST` | `/api/admin/paynet-catalog/sync` | `ROLE_ADMIN` | Paynet katalogini qo'lda sinxronlash   |
 | `GET`  | `/api/admin/paynet-catalog/latest` | `ROLE_ADMIN` | Oxirgi sinxronizatsiya natijasi      |
 
+Recipient maydonlarini olishda `method` majburiy query parametri bo'lib, uning qiymati
+`CHECK` yoki `PAY` bo'lishi kerak.
+
 Paynet katalogi standart holatda har kuni soat `02:00` da (`Asia/Tashkent`) avtomatik sinxronlashtiriladi. Jadvalni `PAYNET_CATALOG_SYNC_CRON` va vaqt zonasini `PAYNET_CATALOG_SYNC_ZONE` orqali o'zgartirish mumkin.
 
 To'lovni tekshirish so'rovi:
@@ -172,7 +175,7 @@ To'lovni tekshirish so'rovi:
 {
   "recipientId": 2,
   "fields": {
-    "account": "8600123412341234"
+    "phoneNumber": "+998901234567"
   }
 }
 ```
@@ -185,9 +188,9 @@ To'lov yaratish so'rovi:
   "idempotencyKey": "550e8400-e29b-41d4-a716-446655440000",
   "checkId": "paynet-check-id",
   "fields": {
-    "account": "8600123412341234"
+    "phoneNumber": "+998901234567"
   },
-  "account": "8600123412341234",
+  "account": "+998901234567",
   "amount": 4000000
 }
 ```
