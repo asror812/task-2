@@ -92,7 +92,7 @@ class RecipientServiceTest {
         tashkent = option(101L, "1", regionField, null);
         yunusabad = option(201L, "10", districtField, tashkent);
 
-        lenient().when(recipientRepository.findOneWithFields(3L)).thenReturn(Optional.of(recipient));
+        lenient().when(recipientRepository.findOneWithRecipientFields(3L)).thenReturn(Optional.of(recipient));
     }
 
     @Test

@@ -15,6 +15,8 @@ import com.devops.paynet.dto.CheckResponseDto;
 import com.devops.paynet.dto.CategoryResponseDto;
 import com.devops.paynet.dto.PayRequestDto;
 import com.devops.paynet.dto.PayResponseDto;
+import com.devops.paynet.dto.PaymentLookupStatus;
+import com.devops.paynet.dto.PaymentStatusResponseDto;
 import com.devops.paynet.dto.RecipientCreateDto;
 import com.devops.paynet.dto.RecipientCatalogResponseDto;
 import com.devops.paynet.dto.RecipientFieldResponseDto;
@@ -184,7 +186,7 @@ public class RecipientService {
     public CheckResponseDto checkRecipient(Long recipientId, CheckRequestDto checkRequestDto) {
         LOG.debug("Request to check Recipient : {}", recipientId);
 
-        Recipient recipient = recipientRepository.findOneWithFields(recipientId)
+        Recipient recipient = recipientRepository.findOneWithRecipientFields(recipientId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Recipient", recipientId));
 
@@ -228,10 +230,11 @@ public class RecipientService {
     public PayResponseDto payRecipient(Long recipientId, PayRequestDto payRequestDto) {
         LOG.info("Payment processing started recipientId={}", recipientId);
 
-        Recipient recipient = recipientRepository.findOneWithFields(recipientId)
+        Recipient recipient = recipientRepository.findOneWithRecipientFields(recipientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Recipient", recipientId));
 
         PayResponseDto existingResponse = findExistingPayResponse(recipientId, payRequestDto);
+
         if (existingResponse != null) {
             LOG.info("Payment response replayed recipientId={} paymentId={}", recipientId, existingResponse.getPaymentId());
             return existingResponse;
@@ -240,6 +243,7 @@ public class RecipientService {
         String lockKey = payIdempotencyLockKey(payRequestDto.getIdempotencyKey());
         String lockToken = UUID.randomUUID().toString();
         Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(lockKey, lockToken, PAYMENT_LOCK_TTL);
+
         if (!Boolean.TRUE.equals(lockAcquired)) {
             PayResponseDto completedResponse = findExistingPayResponse(recipientId, payRequestDto);
             if (completedResponse != null) {
@@ -259,25 +263,51 @@ public class RecipientService {
 
         if (!Boolean.TRUE.equals(recipient.getActive())) {
             LOG.warn("Payment rejected recipientId={} reason=RECIPIENT_INACTIVE", recipientId);
-            return new PayResponseDto(false, null, recipient.getId(), recipient.getName(), List.of("Recipient is not active"));
+            return new PayResponseDto(
+                    false,
+                    null,
+                    recipient.getId(),
+                    recipient.getName(),
+                    List.of("Recipient is not active"));
         }
 
         if (!hasActiveFields(recipient)) {
-            return new PayResponseDto(false, null, recipient.getId(), recipient.getName(), List.of("Recipient has no active fields"));
+            return new PayResponseDto(
+                    false,
+                    null,
+                    recipient.getId(),
+                    recipient.getName(),
+                    List.of("Recipient has no active fields"));
         }
 
         String storedCheck = redisTemplate.opsForValue().get(redisKey(payRequestDto.getCheckId()));
         if (storedCheck == null) {
             LOG.warn("Payment rejected recipientId={} reason=CHECK_NOT_FOUND", recipientId);
-            return new PayResponseDto(false, null, recipient.getId(), recipient.getName(), List.of("Check ID is expired or not found"));
+            return new PayResponseDto(
+                    false,
+                    null,
+                    recipient.getId(),
+                    recipient.getName(),
+                    List.of("Check ID is expired or not found"));
         }
 
         StoredCheckData checkData = readStoredCheck(storedCheck);
         if (!recipientId.equals(checkData.recipientId())) {
-            return new PayResponseDto(false, null, recipient.getId(), recipient.getName(), List.of("Check ID belongs to another recipient"));
+            return new PayResponseDto(
+                    false,
+                    null,
+                    recipient.getId(),
+                    recipient.getName(),
+                    List.of("Check ID belongs to another recipient"));
         }
+
         if (!payRequestDto.getAmount().equals(checkData.amount())) {
-            return new PayResponseDto(false, null, recipient.getId(), recipient.getName(), List.of("Payment amount differs from checked amount"));
+            return new PayResponseDto(
+                    false,
+                    null,
+                    recipient.getId(),
+                    recipient.getName(),
+                    List.of("Payment amount differs from checked amount"));
         }
 
         List<String> validationErrors = validatePayFields(recipient, payRequestDto);
@@ -462,20 +492,55 @@ public class RecipientService {
         return "paynet:pay:lock:" + idempotencyKey;
     }
 
+    public PaymentStatusResponseDto getPaymentStatus(Long recipientId, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Idempotency key is required");
+        }
+
+        String storedResponse = redisTemplate.opsForValue().get(payIdempotencyKey(idempotencyKey));
+        if (storedResponse != null) {
+            try {
+                PayResponseDto response = objectMapper.readValue(storedResponse, PayResponseDto.class);
+                if (!recipientId.equals(response.getRecipientId())) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key belongs to another recipient");
+                }
+                return new PaymentStatusResponseDto(
+                    response.isPaid() ? PaymentLookupStatus.PAID : PaymentLookupStatus.FAILED,
+                    response.getPaymentId(),
+                    response.getErrors() == null ? List.of() : response.getErrors()
+                );
+            } catch (JsonProcessingException exception) {
+                throw new RuntimeException("Failed to deserialize pay response", exception);
+            }
+        }
+
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(payIdempotencyLockKey(idempotencyKey)))) {
+            return new PaymentStatusResponseDto(PaymentLookupStatus.PROCESSING, null, List.of());
+        }
+        return new PaymentStatusResponseDto(PaymentLookupStatus.NOT_FOUND, null, List.of());
+    }
+
     private PayResponseDto findExistingPayResponse(Long recipientId, PayRequestDto payRequestDto) {
-        if (payRequestDto == null || payRequestDto.getIdempotencyKey() == null || payRequestDto.getIdempotencyKey().isBlank()) {
+        if (
+                payRequestDto == null ||
+                        payRequestDto.getIdempotencyKey() == null ||
+                        payRequestDto.getIdempotencyKey().isBlank()) {
             return null;
         }
 
-        String storedResponse = redisTemplate.opsForValue().get(payIdempotencyKey(payRequestDto.getIdempotencyKey()));
-        if (storedResponse == null) {
-            return null;
-        }
+        String storedResponse = redisTemplate.opsForValue()
+                .get(payIdempotencyKey(payRequestDto.getIdempotencyKey()));
+
+        if (storedResponse == null) return null;
 
         try {
             PayResponseDto response = objectMapper.readValue(storedResponse, PayResponseDto.class);
+
             if (!recipientId.equals(response.getRecipientId())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key belongs to another recipient");
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Idempotency key belongs to another recipient"
+                );
             }
             return response;
         } catch (JsonProcessingException exception) {

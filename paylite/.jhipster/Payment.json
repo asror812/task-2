@@ -48,7 +48,7 @@
       "fieldName": "status",
       "fieldType": "PaymentStatus",
       "fieldValidateRules": ["required"],
-      "fieldValues": "PENDING,PAID,FAILED,REVERSED,REFUNDED"
+      "fieldValues": "PENDING,PROCESSING,PAID,FAILED,REVERSED,REFUNDED,RECONCILIATION_REQUIRED"
     },
     {
       "fieldName": "createdDate",

@@ -25,4 +25,5 @@
     <include file="config/liquibase/changelog/20261013134200_set_payment_agent_not_null.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261015123000_add_payment_processing_state.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261015124000_add_catalog_sync_lock.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261015150000_add_payment_outbox.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

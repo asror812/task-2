@@ -5,10 +5,18 @@ import com.devops.paylite.domain.Payment;
 import com.devops.paylite.domain.enumeration.PaymentStatus;
 import com.devops.paylite.repository.AgentRepository;
 import com.devops.paylite.repository.PaymentRepository;
+import com.devops.paylite.repository.PaymentOutboxEventRepository;
+import com.devops.paylite.domain.PaymentOutboxEvent;
 import com.devops.paylite.service.dto.payment.PaymentCreateRequestDto;
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -19,6 +27,11 @@ public class PaymentTransactionService {
 
     private final PaymentRepository paymentRepository;
     private final AgentRepository agentRepository;
+    private final PaymentOutboxEventRepository outboxEventRepository;
+    private final static Logger LOG = LoggerFactory.getLogger(PaymentTransactionService.class);
+
+    @Value("${payment.max-attempts:4}")
+    private int maxAttempts;
 
     @Transactional
     public Payment prepare(
@@ -40,6 +53,7 @@ public class PaymentTransactionService {
 
         Instant now = Instant.now();
         PaymentStatus status = agent.getBalance() >= totalAmount ? PaymentStatus.PENDING : PaymentStatus.FAILED;
+
         if (status == PaymentStatus.PENDING) {
             agent.setBalance(agent.getBalance() - totalAmount);
             agentRepository.save(agent);
@@ -62,7 +76,11 @@ public class PaymentTransactionService {
             .lastError(status == PaymentStatus.FAILED ? "Insufficient balance" : null)
             .build();
 
-        return paymentRepository.saveAndFlush(payment);
+        Payment savedPayment = paymentRepository.saveAndFlush(payment);
+        if (savedPayment.getStatus() == PaymentStatus.PENDING) {
+            outboxEventRepository.save(PaymentOutboxEvent.paymentCreated(savedPayment.getId()));
+        }
+        return savedPayment;
     }
 
     @Transactional(readOnly = true)
@@ -76,29 +94,36 @@ public class PaymentTransactionService {
     public Payment findReplay(String idempotencyKey, PaymentCreateRequestDto dto, String login) {
         Payment payment = paymentRepository
             .findByIdempotencyKey(idempotencyKey)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Concurrent payment creation failed"));
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.CONFLICT, "Concurrent payment creation failed"));
+
         validateReplay(payment, dto, login);
         return payment;
     }
 
     @Transactional
-    public Payment markAttempt(Long paymentId) {
+    public Optional<Payment> claimForProcessing(Long paymentId) {
         Payment payment = findPendingForUpdate(paymentId);
+
         if (payment.getStatus() != PaymentStatus.PENDING) {
-            return payment;
+            return Optional.empty();
         }
+
+        payment.setStatus(PaymentStatus.PROCESSING);
         payment.setAttemptCount(payment.getAttemptCount() + 1);
         payment.setUpdatedDate(Instant.now());
         payment.setLastError(null);
-        return paymentRepository.save(payment);
+        return Optional.of(paymentRepository.save(payment));
     }
 
     @Transactional
     public Payment markPaid(Long paymentId, String paynetPaymentId) {
         Payment payment = findPendingForUpdate(paymentId);
-        if (payment.getStatus() != PaymentStatus.PENDING) {
+
+        if (payment.getStatus() != PaymentStatus.PROCESSING) {
             return payment;
         }
+
         payment.setStatus(PaymentStatus.PAID);
         payment.setPaynetPaymentId(paynetPaymentId);
         payment.setUpdatedDate(Instant.now());
@@ -109,9 +134,12 @@ public class PaymentTransactionService {
     @Transactional
     public Payment markPendingError(Long paymentId, String error) {
         Payment payment = findPendingForUpdate(paymentId);
-        if (payment.getStatus() != PaymentStatus.PENDING) {
+
+        if (payment.getStatus() != PaymentStatus.PROCESSING) {
             return payment;
         }
+
+        payment.setStatus(PaymentStatus.PENDING);
         payment.setUpdatedDate(Instant.now());
         payment.setLastError(limit(error));
         return paymentRepository.save(payment);
@@ -120,12 +148,15 @@ public class PaymentTransactionService {
     @Transactional
     public Payment markFailedAndReleaseBalance(Long paymentId, String error) {
         Payment payment = findPendingForUpdate(paymentId);
-        if (payment.getStatus() != PaymentStatus.PENDING) {
+
+        if (payment.getStatus() != PaymentStatus.PROCESSING) {
             return payment;
         }
+
         Agent agent = agentRepository
             .findByIdForUpdate(payment.getAgent().getId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Agent not found"));
+
         agent.setBalance(Math.addExact(agent.getBalance(), payment.getTotalAmount()));
         agentRepository.save(agent);
 
@@ -133,6 +164,45 @@ public class PaymentTransactionService {
         payment.setUpdatedDate(Instant.now());
         payment.setLastError(limit(error));
         return paymentRepository.save(payment);
+    }
+
+    @Transactional
+    public void markReconciliationRequired(Long paymentId) {
+        Payment payment = findPendingForUpdate(paymentId);
+
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            return;
+        }
+
+        payment.setStatus(PaymentStatus.RECONCILIATION_REQUIRED);
+        payment.setUpdatedDate(Instant.now());
+        payment.setLastError("Automatic payment attempts exhausted; manual reconciliation required");
+        paymentRepository.save(payment);
+    }
+
+    @Transactional
+    public int enqueueStalePaymentsForRecovery(Instant updatedBefore) {
+        List<Payment> stalePayments = paymentRepository.findStaleForUpdate(
+            List.of(PaymentStatus.PENDING, PaymentStatus.PROCESSING),
+            updatedBefore,
+            PageRequest.of(0, 50)
+        );
+        Instant now = Instant.now();
+        stalePayments.forEach(payment -> {
+            if (payment.getAttemptCount() >= maxAttempts) {
+                payment.setStatus(PaymentStatus.RECONCILIATION_REQUIRED);
+                payment.setUpdatedDate(now);
+                payment.setLastError("Automatic payment attempts exhausted; manual reconciliation required");
+                LOG.warn("Payment is being moved to the dead letter queue id={} attempts={}", payment.getId(), payment.getAttemptCount());
+                return;
+            }
+            payment.setStatus(PaymentStatus.PENDING);
+            payment.setUpdatedDate(now);
+            payment.setLastError("Recovered by safety reconciliation");
+            outboxEventRepository.save(PaymentOutboxEvent.paymentRecoveryRequested(payment.getId()));
+        });
+        paymentRepository.saveAll(stalePayments);
+        return stalePayments.size();
     }
 
     private Payment findPendingForUpdate(Long paymentId) {
@@ -145,6 +215,7 @@ public class PaymentTransactionService {
         if (payment.getAgent() == null || !login.equals(payment.getAgent().getLogin())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key already used");
         }
+
         if (
             !dto.getAmount().equals(payment.getAmount()) ||
             !dto.getAccount().equals(payment.getAccount()) ||

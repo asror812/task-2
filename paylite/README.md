@@ -156,7 +156,8 @@ Keycloak realm umumiy loyihadagi `realm-config` papkasidan import qilinadi.
 | `GET`  | `/api/payments/catalog/recipients?page=0&size=20` | `ROLE_AGENT` | Lokal katalogdagi faol xizmatlar |
 | `GET`  | `/api/payments/catalog/recipients/{id}/fields?method=CHECK` | `ROLE_AGENT` | Xizmatning `CHECK` yoki `PAY` maydonlari |
 | `POST` | `/api/payments/check`          | `ROLE_AGENT` | Paynet orqali maydonlarni tekshirish     |
-| `POST` | `/api/payments`                | `ROLE_AGENT` | Yangi to'lov yaratish                    |
+| `POST` | `/api/payments`                | `ROLE_AGENT` | To'lovni navbatga qo'yish (`202`)        |
+| `GET`  | `/api/payments/{id}`           | `ROLE_AGENT` | Bitta to'lovning joriy holatini olish    |
 | `GET`  | `/api/payments?page=0&size=10` | `ROLE_AGENT` | Joriy agent to'lovlarini sahifalab olish |
 | `GET`  | `/api/agents/me/balance`       | `ROLE_AGENT` | Joriy agent balansini olish              |
 | `GET`  | `/api/agents?page=0&size=20`   | `ROLE_ADMIN` | Agentlarni sahifalab olish                |
@@ -174,11 +175,45 @@ To'lovni tekshirish so'rovi:
 ```json
 {
   "recipientId": 2,
+  "amount": 4000000,
   "fields": {
     "phoneNumber": "+998901234567"
   }
 }
 ```
+
+### Asinxron to'lovlarni qayta ishlash
+
+To'lov yaratish, balansni rezerv qilish va `payment_outbox_event` yozuvini yaratish bitta
+tranzaksiyada bajariladi. API `202 Accepted` va `PENDING` holatini qaytaradi. Outbox publisher
+xabarni RabbitMQ'dagi `payment.process` navbatiga yuboradi, consumer esa Paynet'ga murojaat qiladi.
+
+Vaqtinchalik xatoda qayta urinishlar `10 soniya -> 30 soniya -> 2 daqiqa`
+oralig'ida bajariladi. Standart maksimal urinishlar soni 4. Natija noma'lum bo'lib qolsa,
+to'lov `RECONCILIATION_REQUIRED` holatiga o'tadi va `payment.dlq` navbatiga yuboriladi;
+bu holatda rezerv qilingan pul avtomatik qaytarilmaydi. Har 15 daqiqada ishlaydigan safety job
+yo'qolgan xabarlar va uzoq vaqt `PENDING`/`PROCESSING` holatida qolgan to'lovlarni qayta navbatga qo'yadi.
+
+Birinchi urinish Paynet'ning `POST /pay` endpointini chaqiradi. Timeoutdan keyingi urinishlar
+avval `GET /pay/status?idempotencyKey=...` orqali holatni tekshiradi: `PAID` lokal to'lovni
+yakunlaydi, `PROCESSING` keyingi tekshiruvni rejalashtiradi va faqat `NOT_FOUND` yangi `POST /pay`
+so'roviga ruxsat beradi.
+
+Asosiy sozlamalar:
+
+```bash
+RABBITMQ_HOST=localhost
+RABBITMQ_PORT=5672
+RABBITMQ_USERNAME=paylite
+RABBITMQ_PASSWORD=paylite
+PAYMENT_MAX_ATTEMPTS=4
+PAYMENT_OUTBOX_BATCH_SIZE=50
+PAYMENT_OUTBOX_PUBLISH_DELAY_MS=1000
+PAYMENT_RECONCILIATION_DELAY_MS=900000
+PAYMENT_RECONCILIATION_STALE_AFTER_MS=900000
+```
+
+Development RabbitMQ management UI: `http://localhost:15672` (`paylite` / `paylite`).
 
 To'lov yaratish so'rovi:
 

@@ -1,10 +1,10 @@
 package com.devops.paylite.repository;
 
 import com.devops.paylite.domain.Payment;
-import jakarta.validation.constraints.NotNull;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,8 +29,14 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Query("select payment from Payment payment join fetch payment.agent where payment.id = :id")
     Optional<Payment> findByIdForUpdate(@Param("id") Long id);
 
-    List<Payment> findTop50ByStatusAndUpdatedDateBeforeOrderByUpdatedDateAsc(
-        com.devops.paylite.domain.enumeration.PaymentStatus status,
-        Instant updatedBefore
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query(
+        "select payment from Payment payment where payment.status in :statuses " +
+        "and payment.updatedDate < :updatedBefore order by payment.updatedDate asc"
+    )
+    List<Payment> findStaleForUpdate(
+        @Param("statuses") Collection<com.devops.paylite.domain.enumeration.PaymentStatus> statuses,
+        @Param("updatedBefore") Instant updatedBefore,
+        Pageable pageable
     );
 }

@@ -1,0 +1,16 @@
+# Development-only RabbitMQ configuration.
+name: paylite-rabbitmq
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: paylite
+      RABBITMQ_DEFAULT_PASS: paylite
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    ports:
+      - 127.0.0.1:5672:5672
+      - 127.0.0.1:15672:15672

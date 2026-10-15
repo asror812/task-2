@@ -86,9 +86,31 @@ public class PaymentResource {
             return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(paymentDTO);
         }
 
-        return ResponseEntity.created(new URI("/api/payments/" + paymentDTO.getId()))
-            .headers(HeaderUtil.createEntityCreationAlert(applicationName, false, ENTITY_NAME, paymentDTO.getId().toString()))
+        URI location = new URI("/api/payments/" + paymentDTO.getId());
+        if (
+            paymentDTO.getStatus() == PaymentStatus.PENDING ||
+            paymentDTO.getStatus() == PaymentStatus.PROCESSING ||
+            paymentDTO.getStatus() == PaymentStatus.RECONCILIATION_REQUIRED
+        ) {
+            return ResponseEntity.accepted().location(location).body(paymentDTO);
+        }
+
+        if (paymentDTO.getStatus() == PaymentStatus.PAID) {
+            return ResponseEntity.ok(paymentDTO);
+        }
+
+        return ResponseEntity.created(location)
+            .headers(
+                HeaderUtil
+                    .createEntityCreationAlert(applicationName, false, ENTITY_NAME, paymentDTO.getId().toString())
+            )
             .body(paymentDTO);
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_AGENT')")
+    @GetMapping("/{paymentId}")
+    public ResponseEntity<PaymentDTO> getPayment(@PathVariable Long paymentId) {
+        return ResponseEntity.ok(paymentService.getOwn(paymentId));
     }
 
     /**

@@ -16,26 +16,16 @@ import org.springframework.stereotype.Repository;
 public interface RecipientFieldRepository
   extends JpaRepository<RecipientField, Long>
 {
-  default Optional<RecipientField> findOneWithEagerRelationships(Long id) {
-    return this.findOneWithToOneRelationships(id);
-  }
-
-  default Page<RecipientField> findAllWithEagerRelationships(
-    Pageable pageable
-  ) {
-    return this.findAllWithToOneRelationships(pageable);
-  }
-
   @Query(
     value = "select recipientField from RecipientField recipientField left join fetch recipientField.recipient",
     countQuery = "select count(recipientField) from RecipientField recipientField"
   )
-  Page<RecipientField> findAllWithToOneRelationships(Pageable pageable);
+  Page<RecipientField> findAllWithEagerRelationships(Pageable pageable);
 
   @Query(
     "select recipientField from RecipientField recipientField left join fetch recipientField.recipient where recipientField.id =:id"
   )
-  Optional<RecipientField> findOneWithToOneRelationships(@Param("id") Long id);
+  Optional<RecipientField> findOneWithEagerRelationships(@Param("id") Long id);
 
   @Query(
     value = "select recipientField from RecipientField recipientField " +

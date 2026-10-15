@@ -76,6 +76,12 @@ spring:
     import: 'optional:consul:'
   application:
     name: paylite-service
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:paylite}
+    password: ${RABBITMQ_PASSWORD:paylite}
+    publisher-confirm-type: correlated
   cloud:
     openfeign:
       circuitbreaker:
@@ -239,7 +245,11 @@ payment:
   commission-percent: ${PAYMENT_COMMISSION_PERCENT:1.5}
   min-amount: ${PAYMENT_MIN_AMOUNT:100}
   max-amount: ${PAYMENT_MAX_AMOUNT:100000000}
-  reconciliation-delay-ms: ${PAYMENT_RECONCILIATION_DELAY_MS:60000}
+  max-attempts: ${PAYMENT_MAX_ATTEMPTS:4}
+  outbox-batch-size: ${PAYMENT_OUTBOX_BATCH_SIZE:50}
+  outbox-publish-delay-ms: ${PAYMENT_OUTBOX_PUBLISH_DELAY_MS:1000}
+  reconciliation-delay-ms: ${PAYMENT_RECONCILIATION_DELAY_MS:900000}
+  reconciliation-stale-after-ms: ${PAYMENT_RECONCILIATION_STALE_AFTER_MS:900000}
 
 top-up:
   max-amount: ${TOP_UP_MAX_AMOUNT:100000000}

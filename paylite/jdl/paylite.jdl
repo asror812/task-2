@@ -22,10 +22,12 @@ entity Payment {
 
 enum PaymentStatus {
   PENDING,
+  PROCESSING,
   PAID,
   FAILED,
   REVERSED,
-  REFUNDED
+  REFUNDED,
+  RECONCILIATION_REQUIRED
 }
 
 relationship ManyToOne {

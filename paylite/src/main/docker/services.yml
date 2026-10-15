@@ -4,6 +4,10 @@ services:
     extends:
       file: ./postgresql.yml
       service: postgresql
+  rabbitmq:
+    extends:
+      file: ./rabbitmq.yml
+      service: rabbitmq
 #  app:
 #    extends:
 #      file: ./app.yml

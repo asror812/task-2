@@ -6,6 +6,7 @@ import com.devops.paynet.dto.CheckRequestDto;
 import com.devops.paynet.dto.CheckResponseDto;
 import com.devops.paynet.dto.PayRequestDto;
 import com.devops.paynet.dto.PayResponseDto;
+import com.devops.paynet.dto.PaymentStatusResponseDto;
 import com.devops.paynet.dto.RecipientCreateDto;
 import com.devops.paynet.dto.RecipientResponseDto;
 import com.devops.paynet.dto.RecipientCatalogResponseDto;
@@ -139,6 +140,15 @@ public class RecipientResource {
 
         PayResponseDto payResponseDto = recipientService.payRecipient(recipientId, payRequestDto);
         return ResponseEntity.ok().body(payResponseDto);
+    }
+
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.PAYNET_CLIENT + "')")
+    @GetMapping("/{recipientId}/pay/status")
+    public ResponseEntity<PaymentStatusResponseDto> getPaymentStatus(
+        @PathVariable("recipientId") Long recipientId,
+        @RequestParam String idempotencyKey
+    ) {
+        return ResponseEntity.ok(recipientService.getPaymentStatus(recipientId, idempotencyKey));
     }
 
     @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
