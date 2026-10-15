@@ -3,18 +3,35 @@ services:
   consul:
     image: consul:1.15.4
     container_name: consul-server
+    environment:
+      # Fail closed when this compose file is used outside the local start script.
+      CONSUL_DEPLOY_ENV: ${CONSUL_DEPLOY_ENV:-production}
+      CONSUL_CLIENT_BIND: ${CONSUL_CLIENT_BIND:-127.0.0.1}
     ports:
-      - 8500:8500
-      - 8600:8600/udp
-    command: >
-      consul agent 
-      -server 
-      -ui 
-      -node=server-1
-      -bootstrap-expect=1
-      -client=0.0.0.0
-      -datacenter=dc1
-      -data-dir=/consul/data
+      # Keep Consul off public host interfaces unless explicitly configured.
+      - "${CONSUL_HOST_BIND:-127.0.0.1}:8500:8500"
+      - "${CONSUL_HOST_BIND:-127.0.0.1}:8600:8600/udp"
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        case "$${CONSUL_DEPLOY_ENV}" in
+          development|dev|local|test) ;;
+          *)
+            if [ "$${CONSUL_CLIENT_BIND}" = "0.0.0.0" ]; then
+              echo >&2 "Refusing to start Consul: CONSUL_CLIENT_BIND=0.0.0.0 is forbidden outside local/test environments";
+              exit 64;
+            fi
+            ;;
+        esac;
+        exec consul agent
+          -server
+          -ui
+          -node=server-1
+          -bootstrap-expect=1
+          -client="$${CONSUL_CLIENT_BIND}"
+          -datacenter=dc1
+          -data-dir=/consul/data
     volumes:
       - consul-data:/consul/data
     networks:

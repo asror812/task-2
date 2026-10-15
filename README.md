@@ -27,6 +27,24 @@ Loyihaning asosiy papkasida:
 ./start.sh
 ```
 
+`start.sh` Consul'ni aniq `development` rejimida ishga tushiradi va uning
+host portlarini faqat `127.0.0.1` manziliga ochadi. `consul.yml` boshqa
+muhitda to'g'ridan-to'g'ri ishlatilsa, muhit xavfsiz tarzda `production`
+deb qabul qilinadi. Bunday rejimda `CONSUL_CLIENT_BIND=0.0.0.0` berilsa,
+Consul ishga tushmaydi.
+
+Real muhitda bind qiymatlarini aniq ko'rsating:
+
+```bash
+CONSUL_DEPLOY_ENV=production \
+CONSUL_CLIENT_BIND='<private-consul-interface-ip>' \
+CONSUL_HOST_BIND='<private-host-interface-ip>' \
+docker compose -f docker-compose.yml up -d
+```
+
+`CONSUL_CLIENT_BIND=0.0.0.0` va `CONSUL_HOST_BIND=0.0.0.0` qiymatlarini
+real muhitda ishlatmang.
+
 `start.sh` quyidagi konteynerlarni ishga tushiradi:
 
 - Consul
