@@ -1,18 +1,17 @@
 package com.devops.paylite.service;
 
 import com.devops.paylite.config.PaymentProperties;
-import com.devops.paylite.domain.Agent;
 import com.devops.paylite.domain.Payment;
 import com.devops.paylite.domain.PaynetRecipient;
 import com.devops.paylite.domain.PaynetRecipientField;
 import com.devops.paylite.domain.PaynetRecipientFieldValue;
 import com.devops.paylite.domain.enumeration.PaymentStatus;
 import com.devops.paylite.domain.enumeration.RecipientFieldMethod;
-import com.devops.paylite.repository.AgentRepository;
 import com.devops.paylite.repository.PaymentRepository;
 import com.devops.paylite.repository.PaynetRecipientRepository;
 import com.devops.paylite.repository.PaynetRecipientFieldRepository;
 import com.devops.paylite.security.SecurityUtils;
+import com.devops.paylite.service.dto.paynet.PaynetCheckResponseDto;
 import com.devops.paylite.service.dto.paynet.PaynetPayResponseDto;
 import com.devops.paylite.service.dto.payment.PaymentCheckRequestDto;
 import com.devops.paylite.service.dto.payment.PaymentCheckResponseDto;
@@ -29,6 +28,9 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.devops.paylite.web.rest.PaynetServiceClient;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -36,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -47,7 +50,6 @@ public class PaymentService {
     private static final Logger LOG = LoggerFactory.getLogger(PaymentService.class);
 
     private final PaymentRepository paymentRepository;
-    private final AgentRepository agentRepository;
     private final PaymentMapper paymentMapper;
     private final PaymentCheckMapper paymentCheckMapper;
     private final PaymentPayMapper paymentPayMapper;
@@ -55,6 +57,8 @@ public class PaymentService {
     private final PaynetServiceClient paynetServiceClient;
     private final PaynetRecipientRepository paynetRecipientRepository;
     private final PaynetRecipientFieldRepository paynetRecipientFieldRepository;
+    private final PaymentTransactionService paymentTransactionService;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public Page<RecipientCatalogDto> getRecipients(Pageable pageable) {
@@ -65,12 +69,9 @@ public class PaymentService {
 
 
     @Transactional(readOnly = true)
-    public List<RecipientFieldCatalogDto> getRecipientFields(Long recipientId) {
+    public List<RecipientFieldCatalogDto> getRecipientFields(Long recipientId, RecipientFieldMethod method) {
         return paynetRecipientFieldRepository
-            .findAllByRecipientPaynetIdAndActiveTrueAndMethodOrderBySortOrderAscIdAsc(
-                recipientId,
-                RecipientFieldMethod.CHECK
-            )
+            .findAllByRecipientPaynetIdAndActiveTrueAndMethodOrderBySortOrderAscIdAsc(recipientId, method)
             .stream()
             .map(this::toRecipientFieldCatalogDto)
             .toList();
@@ -82,80 +83,75 @@ public class PaymentService {
      * @param dto the entity to create.
      * @return the persisted entity.
      */
-    @Transactional
     public PaymentDTO create(PaymentCreateRequestDto dto) {
         LOG.debug("Request to create Payment : {}", dto);
 
         String login = SecurityUtils.getCurrentUserLogin()
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current user login not found"));
 
-        Agent agent = agentRepository
-            .findByLoginForUpdate(login)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Agent not found"));
-
-        Payment existingPayment = paymentRepository.findByIdempotencyKey(dto.getIdempotencyKey()).orElse(null);
-        if (existingPayment != null) {
-            if (existingPayment.getAgent() == null || !login.equals(existingPayment.getAgent().getLogin())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key already used");
-            }
-            if (
-                !dto.getAmount().equals(existingPayment.getAmount()) ||
-                !dto.getAccount().equals(existingPayment.getAccount()) ||
-                !dto.getCheckId().equals(existingPayment.getCheckId())
-            ) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key already used for another payment");
-            }
-
-            return paymentMapper.toDto(existingPayment);
-        }
-
         validateAmount(dto.getAmount());
 
         long commissionAmount = calculateCommission(dto.getAmount());
         long totalAmount = calculateTotalAmount(dto.getAmount(), commissionAmount);
+        String requestPayload = serializePaynetRequest(paymentPayMapper.toPaynetPayRequest(dto));
 
-        PaymentStatus status = agent.getBalance() >= totalAmount ? PaymentStatus.PAID : PaymentStatus.FAILED;
-        PaynetPayResponseDto paynetPayResponseDto = null;
+        Payment payment;
+        try {
+            payment = paymentTransactionService.prepare(dto, login, commissionAmount, totalAmount, requestPayload);
+        } catch (DataIntegrityViolationException exception) {
+            payment = paymentTransactionService.findReplay(dto.getIdempotencyKey(), dto, login);
+        }
 
-        if (status == PaymentStatus.PAID) {
-            paynetPayResponseDto = paynetServiceClient.pay(
-                dto.getRecipientId(),
-                paymentPayMapper.toPaynetPayRequest(dto)
+        if (payment.getStatus() != PaymentStatus.PENDING || payment.getAttemptCount() > 0) {
+            return paymentMapper.toDto(payment);
+        }
+        return paymentMapper.toDto(processPendingPayment(payment.getId()));
+    }
+
+    public void reconcilePendingPayments() {
+        Instant updatedBefore = Instant.now().minusSeconds(60);
+        paymentRepository
+            .findTop50ByStatusAndUpdatedDateBeforeOrderByUpdatedDateAsc(PaymentStatus.PENDING, updatedBefore)
+            .forEach(payment -> processPendingPayment(payment.getId()));
+    }
+
+    private Payment processPendingPayment(Long paymentId) {
+        Payment payment = paymentTransactionService.markAttempt(paymentId);
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            return payment;
+        }
+
+        final com.devops.paylite.service.dto.paynet.PaynetPayRequestDto request;
+        try {
+            request = objectMapper.readValue(
+                payment.getRequestPayload(),
+                com.devops.paylite.service.dto.paynet.PaynetPayRequestDto.class
             );
+        } catch (JsonProcessingException exception) {
+            return paymentTransactionService.markFailedAndReleaseBalance(paymentId, "Invalid stored payment payload");
+        }
 
-            if (!paynetPayResponseDto.isPaid()) {
-                List<String> errors = paynetPayResponseDto.getErrors() == null ? List.of() : paynetPayResponseDto.getErrors();
-                String message = errors.isEmpty() ? "Paynet payment failed" : "Paynet payment failed: " + String.join(", ", errors);
-
-                throw new ResponseStatusException(
-                    HttpStatus.UNPROCESSABLE_ENTITY,
-                    message
-                );
+        try {
+            PaynetPayResponseDto response = paynetServiceClient.pay(payment.getRecipientId(), request);
+            if (response.isPaid()) {
+                return paymentTransactionService.markPaid(paymentId, response.getPaymentId());
             }
+
+            List<String> errors = response.getErrors() == null ? List.of() : response.getErrors();
+            String message = errors.isEmpty() ? "Paynet payment failed" : "Paynet payment failed: " + String.join(", ", errors);
+            return paymentTransactionService.markFailedAndReleaseBalance(paymentId, message);
+        } catch (RuntimeException exception) {
+            LOG.warn("Paynet payment attempt failed; payment remains PENDING id={}", paymentId, exception);
+            return paymentTransactionService.markPendingError(paymentId, exception.getMessage());
         }
+    }
 
-        Payment payment = Payment.builder()
-            .account(dto.getAccount())
-            .amount(dto.getAmount())
-            .totalAmount(totalAmount)
-            .commissionAmount(commissionAmount)
-            .checkId(dto.getCheckId())
-            .paynetPaymentId(paynetPayResponseDto == null ? null : paynetPayResponseDto.getPaymentId())
-            .idempotencyKey(dto.getIdempotencyKey())
-            .status(status)
-            .agent(agent)
-            .createdDate(Instant.now())
-            .build();
-
-        if (status == PaymentStatus.PAID) {
-            agent.setBalance(agent.getBalance() - totalAmount);
-            agentRepository.save(agent);
-        } else {
-            LOG.info("Insufficient balance for agent: {}", agent.getLogin());
+    private String serializePaynetRequest(com.devops.paylite.service.dto.paynet.PaynetPayRequestDto request) {
+        try {
+            return objectMapper.writeValueAsString(request);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Could not serialize payment request", exception);
         }
-
-        payment = paymentRepository.save(payment);
-        return paymentMapper.toDto(payment);
     }
 
     public Page<PaymentDTO> getOwn(Pageable pageable) {
@@ -203,9 +199,10 @@ public class PaymentService {
     }
 
     public PaymentCheckResponseDto check(PaymentCheckRequestDto createDto) {
-        return paymentCheckMapper.toPaymentCheckResponse(
-            paynetServiceClient.check(createDto.getRecipientId(), paymentCheckMapper.toPaynetCheckRequest(createDto))
-        );
+        PaynetCheckResponseDto check = paynetServiceClient
+            .check(createDto.getRecipientId(), paymentCheckMapper.toPaynetCheckRequest(createDto));
+
+        return paymentCheckMapper.toPaymentCheckResponse(check);
     }
 
     private void validateAmount(long amount) {
@@ -253,11 +250,26 @@ public class PaymentService {
 
 
     private RecipientCatalogDto toRecipientCatalogDto(PaynetRecipient recipient) {
-        return new RecipientCatalogDto(recipient.getPaynetId(), recipient.getName(), recipient.getCode(), recipient.getActive(), recipient.getCategory().getName(), recipient.getCategory().getPaynetId());
+        return new RecipientCatalogDto(
+            recipient.getPaynetId(),
+            recipient.getName(),
+            recipient.getCode(),
+            recipient.getActive(),
+            recipient.getCategory().getName(),
+            recipient.getCategory().getPaynetId()
+        );
     }
 
 
     private RecipientFieldValueCatalogDto toRecipientFieldValueCatalogDto(PaynetRecipientFieldValue value) {
-        return new RecipientFieldValueCatalogDto(value.getPaynetId(), value.getValue(), value.getLabel(), value.getActive(), value.getSortOrder(), value.getRecipientField().getPaynetId(), value.getParent() == null ? null : value.getParent().getPaynetId());
+        return new RecipientFieldValueCatalogDto(
+            value.getPaynetId(),
+            value.getValue(),
+            value.getLabel(),
+            value.getActive(),
+            value.getSortOrder(),
+            value.getRecipientField().getPaynetId(),
+            value.getParent() == null ? null : value.getParent().getPaynetId()
+        );
     }
 }

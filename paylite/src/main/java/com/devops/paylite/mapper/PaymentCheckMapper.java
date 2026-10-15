@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class PaymentCheckMapper {
 
     public PaynetCheckRequestDto toPaynetCheckRequest(PaymentCheckRequestDto dto) {
-        return new PaynetCheckRequestDto(dto.getFields());
+        return new PaynetCheckRequestDto(dto.getFields(), dto.getAmount());
     }
 
     public PaymentCheckResponseDto toPaymentCheckResponse(PaynetCheckResponseDto dto) {

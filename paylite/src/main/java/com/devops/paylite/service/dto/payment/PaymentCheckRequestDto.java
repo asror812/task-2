@@ -2,6 +2,7 @@ package com.devops.paylite.service.dto.payment;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -19,4 +20,8 @@ public class PaymentCheckRequestDto {
 
     @NotEmpty(message = "payment fields are required")
     private Map<String, Object> fields;
+
+    @NotNull(message = "Amount is required")
+    @Positive(message = "Amount must be positive")
+    private Long amount;
 }

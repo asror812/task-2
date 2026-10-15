@@ -27,6 +27,8 @@ public class PaymentDTO implements Serializable {
 
     private String checkId;
 
+    private Long recipientId;
+
     private String paynetPaymentId;
 
     private String idempotencyKey;
@@ -35,6 +37,12 @@ public class PaymentDTO implements Serializable {
     private PaymentStatus status;
 
     private Instant createdDate;
+
+    private Instant updatedDate;
+
+    private Integer attemptCount;
+
+    private String lastError;
 
     private AgentDTO agent;
 

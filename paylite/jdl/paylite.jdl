@@ -8,13 +8,24 @@ entity Payment {
   amount Long required,
   commissionAmount Long,
   totalAmount Long,
+  checkId String,
+  recipientId Long,
+  requestPayload TextBlob,
+  paynetPaymentId String,
+  idempotencyKey String unique,
   status PaymentStatus required,
-  createdDate Instant
+  createdDate Instant,
+  updatedDate Instant,
+  attemptCount Integer required,
+  lastError String maxlength(1000)
 }
 
 enum PaymentStatus {
+  PENDING,
   PAID,
-  FAILED
+  FAILED,
+  REVERSED,
+  REFUNDED
 }
 
 relationship ManyToOne {

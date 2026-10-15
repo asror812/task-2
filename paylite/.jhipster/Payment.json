@@ -24,14 +24,50 @@
       "fieldType": "Long"
     },
     {
+      "fieldName": "checkId",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "recipientId",
+      "fieldType": "Long"
+    },
+    {
+      "fieldName": "requestPayload",
+      "fieldType": "TextBlob"
+    },
+    {
+      "fieldName": "paynetPaymentId",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "idempotencyKey",
+      "fieldType": "String",
+      "fieldValidateRules": ["unique"]
+    },
+    {
       "fieldName": "status",
       "fieldType": "PaymentStatus",
       "fieldValidateRules": ["required"],
-      "fieldValues": "PAID,FAILED"
+      "fieldValues": "PENDING,PAID,FAILED,REVERSED,REFUNDED"
     },
     {
       "fieldName": "createdDate",
       "fieldType": "Instant"
+    },
+    {
+      "fieldName": "updatedDate",
+      "fieldType": "Instant"
+    },
+    {
+      "fieldName": "attemptCount",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "lastError",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": 1000
     }
   ],
   "name": "Payment",

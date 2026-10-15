@@ -23,4 +23,6 @@
     <include file="config/liquibase/changelog/20261013133600_create_top_up_ledger.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261013134100_add_check_constraints.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261013134200_set_payment_agent_not_null.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261015123000_add_payment_processing_state.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261015124000_add_catalog_sync_lock.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

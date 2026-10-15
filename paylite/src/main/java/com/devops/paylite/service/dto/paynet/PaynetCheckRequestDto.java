@@ -13,4 +13,5 @@ import lombok.Setter;
 public class PaynetCheckRequestDto {
 
     private Map<String, Object> fields;
+    private Long amount;
 }

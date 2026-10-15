@@ -14,6 +14,12 @@ public interface PaymentMapper extends EntityMapper<PaymentDTO, Payment> {
     @Mapping(target = "agent", source = "agent", qualifiedByName = "agentId")
     PaymentDTO toDto(Payment s);
 
+    @Mapping(target = "requestPayload", ignore = true)
+    Payment toEntity(PaymentDTO dto);
+
+    @Mapping(target = "requestPayload", ignore = true)
+    void partialUpdate(@MappingTarget Payment entity, PaymentDTO dto);
+
     @Named("agentId")
     @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "id", source = "id")

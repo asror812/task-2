@@ -76,6 +76,15 @@ spring:
     import: 'optional:consul:'
   application:
     name: paylite-service
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          paynet:
+            connectTimeout: ${PAYNET_CONNECT_TIMEOUT_MS:3000}
+            readTimeout: ${PAYNET_READ_TIMEOUT_MS:5000}
   docker:
     compose:
       enabled: false
@@ -230,6 +239,7 @@ payment:
   commission-percent: ${PAYMENT_COMMISSION_PERCENT:1.5}
   min-amount: ${PAYMENT_MIN_AMOUNT:100}
   max-amount: ${PAYMENT_MAX_AMOUNT:100000000}
+  reconciliation-delay-ms: ${PAYMENT_RECONCILIATION_DELAY_MS:60000}
 
 top-up:
   max-amount: ${TOP_UP_MAX_AMOUNT:100000000}

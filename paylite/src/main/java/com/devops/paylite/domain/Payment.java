@@ -43,6 +43,12 @@ public class Payment implements Serializable {
     @Column(name = "check_id")
     private String checkId;
 
+    @Column(name = "recipient_id")
+    private Long recipientId;
+
+    @Column(name = "request_payload", columnDefinition = "text")
+    private String requestPayload;
+
     @Column(name = "paynet_payment_id")
     private String paynetPaymentId;
 
@@ -56,6 +62,16 @@ public class Payment implements Serializable {
 
     @Column(name = "created_date")
     private Instant createdDate;
+
+    @Column(name = "updated_date")
+    private Instant updatedDate;
+
+    @Column(name = "attempt_count", nullable = false)
+    @Builder.Default
+    private Integer attemptCount = 0;
+
+    @Column(name = "last_error", length = 1000)
+    private String lastError;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "agent_id", nullable = false)
