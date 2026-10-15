@@ -5,22 +5,25 @@ import com.devops.paylite.domain.enumeration.SyncStatus;
 import com.devops.paylite.repository.PaynetCatalogSyncRepository;
 import com.devops.paylite.service.dto.PaynetCatalogSyncResponseDto;
 import com.devops.paylite.service.dto.load.PaynetCategoryLoadDto;
+import com.devops.paylite.service.dto.load.PaynetCatalogEntryLoadDto;
 import com.devops.paylite.service.dto.load.PaynetRecipientLoadDto;
 import com.devops.paylite.service.dto.load.PaynetRecipientFieldLoadDto;
 import com.devops.paylite.web.rest.PaynetServiceClient;
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
 public class PaynetCatalogSyncService {
-
-    private static final int PAGE_SIZE = 100;
 
     private final PaynetServiceClient paynetServiceClient;
     private final PaynetCatalogWriter paynetCatalogWriter;
@@ -32,24 +35,48 @@ public class PaynetCatalogSyncService {
     }
 
     public PaynetCatalogSyncResponseDto sync() {
-        PaynetCatalogSync run = paynetCatalogSyncRepository.save(
-            PaynetCatalogSync.builder()
-                .startedAt(Instant.now())
-                .status(SyncStatus.RUNNING)
-                .categoriesProcessed(0L)
-                .recipientsProcessed(0L)
-                .fieldsProcessed(0L)
-                .valuesProcessed(0L)
-                .build()
-        );
+        Instant startedAt = Instant.now();
+        paynetCatalogSyncRepository.failStaleRunning(startedAt.minusSeconds(3600), startedAt);
+
+        PaynetCatalogSync run;
+        try {
+            run = paynetCatalogSyncRepository.saveAndFlush(
+                PaynetCatalogSync.builder()
+                    .startedAt(startedAt)
+                    .status(SyncStatus.RUNNING)
+                    .categoriesProcessed(0L)
+                    .recipientsProcessed(0L)
+                    .fieldsProcessed(0L)
+                    .valuesProcessed(0L)
+                    .build()
+            );
+        } catch (DataIntegrityViolationException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Paynet catalog synchronization is already running", exception);
+        }
 
         try {
-            List<PaynetCategoryLoadDto> categories = loadAllCategories();
-            List<PaynetRecipientLoadDto> recipients = loadAllRecipients();
-            List<PaynetRecipientFieldLoadDto> fields = loadAllRecipientFields();
+            List<PaynetCatalogEntryLoadDto> catalog = paynetServiceClient.getCatalog();
+            if (catalog == null) {
+                throw new IllegalStateException("Paynet returned a null catalog");
+            }
 
-            if (categories.isEmpty() || recipients.isEmpty() || fields.isEmpty()) {
-                throw new IllegalStateException("Paynet returned an empty catalog");
+            Map<Long, PaynetCategoryLoadDto> categoriesById = new LinkedHashMap<>();
+            List<PaynetRecipientLoadDto> recipients = new java.util.ArrayList<>();
+            List<PaynetRecipientFieldLoadDto> fields = new java.util.ArrayList<>();
+            for (PaynetCatalogEntryLoadDto entry : catalog) {
+                if (entry.getCategory() == null || entry.getRecipient() == null) {
+                    throw new IllegalStateException("Paynet returned an incomplete catalog entry");
+                }
+                categoriesById.putIfAbsent(entry.getCategory().getId(), entry.getCategory());
+                recipients.add(entry.getRecipient());
+                if (entry.getFields() != null) {
+                    fields.addAll(entry.getFields());
+                }
+            }
+            List<PaynetCategoryLoadDto> categories = List.copyOf(categoriesById.values());
+
+            if (categories.isEmpty() || recipients.isEmpty()) {
+                throw new IllegalStateException("Paynet returned an empty categories or recipients catalog");
             }
 
             paynetCatalogWriter.writeCatalog(categories, recipients, fields, Instant.now());
@@ -68,57 +95,6 @@ public class PaynetCatalogSyncService {
             run.setErrorMessage(limitErrorMessage(exception.getMessage()));
             paynetCatalogSyncRepository.save(run);
             throw exception;
-        }
-    }
-
-    private List<PaynetCategoryLoadDto> loadAllCategories() {
-        List<PaynetCategoryLoadDto> result = new ArrayList<>();
-        int page = 0;
-
-        while (true) {
-            List<PaynetCategoryLoadDto> content = paynetServiceClient.getCategoryPage(page, PAGE_SIZE);
-            if (content == null) {
-                throw new IllegalStateException("Paynet returned null categories page " + page);
-            }
-            result.addAll(content);
-            if (content.size() < PAGE_SIZE) {
-                return result;
-            }
-            page++;
-        }
-    }
-
-    private List<PaynetRecipientLoadDto> loadAllRecipients() {
-        List<PaynetRecipientLoadDto> result = new ArrayList<>();
-        int page = 0;
-
-        while (true) {
-            List<PaynetRecipientLoadDto> content = paynetServiceClient.getRecipientPage(page, PAGE_SIZE);
-            if (content == null) {
-                throw new IllegalStateException("Paynet returned null recipients page " + page);
-            }
-            result.addAll(content);
-            if (content.size() < PAGE_SIZE) {
-                return result;
-            }
-            page++;
-        }
-    }
-
-    private List<PaynetRecipientFieldLoadDto> loadAllRecipientFields() {
-        List<PaynetRecipientFieldLoadDto> result = new ArrayList<>();
-        int page = 0;
-
-        while (true) {
-            List<PaynetRecipientFieldLoadDto> content = paynetServiceClient.getRecipientFields(page, PAGE_SIZE);
-            if (content == null) {
-                throw new IllegalStateException("Paynet returned null recipient fields page " + page);
-            }
-            result.addAll(content);
-            if (content.size() < PAGE_SIZE) {
-                return result;
-            }
-            page++;
         }
     }
 
