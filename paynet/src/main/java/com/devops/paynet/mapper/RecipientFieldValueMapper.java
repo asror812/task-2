@@ -1,6 +1,5 @@
 package com.devops.paynet.mapper;
 
-import com.devops.paynet.domain.RecipientField;
 import com.devops.paynet.domain.RecipientFieldValue;
 import com.devops.paynet.dto.RecipientFieldValueCreateDto;
 import com.devops.paynet.dto.RecipientFieldValueResponseDto;
@@ -16,15 +15,6 @@ public class RecipientFieldValueMapper {
         entity.setActive(dto.active());
         entity.setSortOrder(dto.sortOrder());
 
-        RecipientField field = new RecipientField();
-        field.setId(dto.recipientFieldId());
-        entity.setRecipientField(field);
-
-        if (dto.parentId() != null) {
-            RecipientFieldValue parent = new RecipientFieldValue();
-            parent.setId(dto.parentId());
-            entity.setParent(parent);
-        }
         return entity;
     }
 
@@ -36,7 +26,8 @@ public class RecipientFieldValueMapper {
             entity.getActive(),
             entity.getSortOrder(),
             entity.getRecipientField().getId(),
-            entity.getParent() == null ? null : entity.getParent().getId()
+            entity.getParent() == null ? null : entity.getParent().getId(),
+            entity.getLastModifiedDate()
         );
     }
 }

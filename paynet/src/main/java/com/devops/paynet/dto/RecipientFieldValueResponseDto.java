@@ -1,5 +1,7 @@
 package com.devops.paynet.dto;
 
+import java.time.Instant;
+
 public record RecipientFieldValueResponseDto(
     Long id,
     String value,
@@ -7,5 +9,6 @@ public record RecipientFieldValueResponseDto(
     Boolean active,
     Integer sortOrder,
     Long recipientFieldId,
-    Long parentId
+    Long parentId,
+    Instant updatedAt
 ) {}

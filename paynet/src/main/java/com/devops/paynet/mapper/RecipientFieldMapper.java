@@ -30,12 +30,6 @@ public interface RecipientFieldMapper {
         recipientField.setType(recipientFieldCreateDTO.type());
         recipientField.setSortOrder(recipientFieldCreateDTO.sortOrder());
 
-        if (recipientFieldCreateDTO.recipientId() != null) {
-            Recipient recipient = new Recipient();
-            recipient.setId(recipientFieldCreateDTO.recipientId());
-            recipientField.setRecipient(recipient);
-        }
-
         return recipientField;
     }
 
@@ -49,7 +43,6 @@ public interface RecipientFieldMapper {
         List<RecipientFieldValueResponseDto> values = recipientField.getValues() == null
             ? List.of()
             : recipientField.getValues().stream()
-                .filter(value -> Boolean.TRUE.equals(value.getActive()))
                 .sorted(Comparator.comparingInt(value -> value.getSortOrder()))
                 .map(value -> new RecipientFieldValueResponseDto(
                     value.getId(),
@@ -58,7 +51,8 @@ public interface RecipientFieldMapper {
                     value.getActive(),
                     value.getSortOrder(),
                     recipientField.getId(),
-                    value.getParent() == null ? null : value.getParent().getId()
+                    value.getParent() == null ? null : value.getParent().getId(),
+                    value.getLastModifiedDate()
                 ))
                 .toList();
         return new RecipientFieldResponseDto(
@@ -74,7 +68,8 @@ public interface RecipientFieldMapper {
             recipient != null ? recipient.getId() : null,
             recipient != null ? recipient.getName() : null,
             category != null ? category.getName() : null,
-            values
+            values,
+            recipientField.getLastModifiedDate()
         );
     }
 }

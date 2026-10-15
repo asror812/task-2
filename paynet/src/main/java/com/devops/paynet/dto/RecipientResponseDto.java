@@ -1,7 +1,6 @@
 package com.devops.paynet.dto;
 
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import java.time.Instant;
 
 /**
  * A DTO for the {@link com.devops.paynet.domain.Recipient} entity.
@@ -13,6 +12,7 @@ public record RecipientResponseDto(
         String code,
         Boolean active,
         String categoryName,
-        Long categoryId
+        Long categoryId,
+        Instant updatedAt
 ) {
 }

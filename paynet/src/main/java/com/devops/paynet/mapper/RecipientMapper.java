@@ -19,12 +19,6 @@ public interface RecipientMapper {
     recipient.setCode(recipientDTO.code());
     recipient.setActive(recipientDTO.active());
 
-    if (recipientDTO.categoryId() != null) {
-      Category category = new Category();
-      category.setId(recipientDTO.categoryId());
-      recipient.setCategory(category);
-    }
-
     return recipient;
   }
 
@@ -40,7 +34,8 @@ public interface RecipientMapper {
       recipient.getCode(),
       recipient.getActive(),
       category != null ? category.getName() : null,
-      category != null ? category.getId() : null
+      category != null ? category.getId() : null,
+      recipient.getLastModifiedDate()
     );
   }
 }

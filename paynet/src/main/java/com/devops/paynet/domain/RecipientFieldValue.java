@@ -1,6 +1,5 @@
 package com.devops.paynet.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -25,7 +24,7 @@ import java.io.Serializable;
         columnNames = { "recipient_field_id", "field_value" }
     )
 )
-public class RecipientFieldValue implements Serializable {
+public class RecipientFieldValue extends AbstractAuditingEntity<Long> {
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -56,12 +55,10 @@ public class RecipientFieldValue implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "recipient_field_id", nullable = false)
-    @JsonIgnoreProperties(value = { "recipient", "values" }, allowSetters = true)
     private RecipientField recipientField;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
-    @JsonIgnoreProperties(value = { "recipientField", "parent" }, allowSetters = true)
     private RecipientFieldValue parent;
 
     public Long getId() {

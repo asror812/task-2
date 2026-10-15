@@ -8,10 +8,13 @@ import com.devops.paynet.dto.PayRequestDto;
 import com.devops.paynet.dto.PayResponseDto;
 import com.devops.paynet.dto.RecipientCreateDto;
 import com.devops.paynet.dto.RecipientResponseDto;
+import com.devops.paynet.dto.RecipientCatalogResponseDto;
+import com.devops.paynet.dto.ActiveUpdateDto;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -50,6 +54,7 @@ public class RecipientResource {
      * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new recipientDTO, or with status {@code 400 (Bad Request)} if the recipient already has an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
     @PostMapping
     public ResponseEntity<RecipientResponseDto> createRecipient(@Valid @RequestBody RecipientCreateDto recipientDTO) throws URISyntaxException {
         LOG.debug("REST request to save Recipient : {}", recipientDTO);
@@ -77,10 +82,13 @@ public class RecipientResource {
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of Recipients in body.
      */
     @GetMapping
-    public ResponseEntity<List<RecipientResponseDto>> getAllRecipients(@ParameterObject Pageable pageable) {
+    public ResponseEntity<List<RecipientResponseDto>> getAllRecipients(
+        @ParameterObject Pageable pageable,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant updatedSince
+    ) {
         LOG.debug("REST request to get a page of Recipients");
 
-        Page<RecipientResponseDto> page = recipientService.findAll(pageable);
+        Page<RecipientResponseDto> page = recipientService.findAll(pageable, updatedSince);
 
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(
                 ServletUriComponentsBuilder.fromCurrentRequest(),
@@ -88,6 +96,13 @@ public class RecipientResource {
         );
 
         return ResponseEntity.ok().headers(headers).body(page.getContent());
+    }
+
+    @GetMapping("/catalog")
+    public List<RecipientCatalogResponseDto> getCatalog(
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant updatedSince
+    ) {
+        return recipientService.findCatalog(updatedSince);
     }
 
     /**
@@ -108,7 +123,7 @@ public class RecipientResource {
     @PostMapping("/{recipientId}/check")
     public ResponseEntity<CheckResponseDto> checkRecipient(
             @PathVariable("recipientId") Long recipientId,
-            @RequestBody CheckRequestDto checkRequestDto){
+            @Valid @RequestBody CheckRequestDto checkRequestDto){
         LOG.debug("REST request to check Recipient : {}", recipientId);
 
         CheckResponseDto checkResponseDto = recipientService.checkRecipient(recipientId, checkRequestDto);
@@ -124,6 +139,15 @@ public class RecipientResource {
 
         PayResponseDto payResponseDto = recipientService.payRecipient(recipientId, payRequestDto);
         return ResponseEntity.ok().body(payResponseDto);
+    }
+
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<RecipientResponseDto> updateActive(
+        @PathVariable Long id,
+        @Valid @RequestBody ActiveUpdateDto dto
+    ) {
+        return ResponseEntity.ok(recipientService.updateActive(id, dto.active()));
     }
 
 }

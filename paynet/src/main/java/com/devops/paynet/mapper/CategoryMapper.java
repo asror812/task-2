@@ -7,6 +7,18 @@ import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
 public interface CategoryMapper {
-    CategoryResponseDto toResponseDto(Category category);
+    default CategoryResponseDto toResponseDto(Category category) {
+        if (category == null) {
+            return null;
+        }
+        return new CategoryResponseDto(
+            category.getId(),
+            category.getName(),
+            category.getActive(),
+            category.getSortOrder(),
+            category.getLastModifiedDate()
+        );
+    }
+
     Category toEntity(CategoryCreateDto categoryDTO);
 }

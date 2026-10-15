@@ -1,12 +1,15 @@
 package com.devops.paynet.web.rest;
 
+import com.devops.paynet.security.AuthoritiesConstants;
 import com.devops.paynet.service.RecipientFieldService;
 import com.devops.paynet.dto.RecipientFieldCreateDto;
 import com.devops.paynet.dto.RecipientFieldResponseDto;
+import com.devops.paynet.dto.ActiveUpdateDto;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +19,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
@@ -47,6 +52,7 @@ public class RecipientFieldResource {
      * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new recipientFieldCreateDTO, or with status {@code 400 (Bad Request)} if the recipientField already has an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
     @PostMapping("")
     public ResponseEntity<RecipientFieldResponseDto> createRecipientField(@Valid @RequestBody RecipientFieldCreateDto recipientFieldCreateDTO
     ) throws URISyntaxException {
@@ -76,11 +82,12 @@ public class RecipientFieldResource {
      */
     @GetMapping
     public ResponseEntity<List<RecipientFieldResponseDto>> getAll(
-            @ParameterObject Pageable pageable) {
+            @ParameterObject Pageable pageable,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant updatedSince) {
 
         LOG.debug("REST request to get a page of RecipientFields");
 
-        Page<RecipientFieldResponseDto> page = recipientFieldService.findAll(pageable);
+        Page<RecipientFieldResponseDto> page = recipientFieldService.findAll(pageable, updatedSince);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(
                 ServletUriComponentsBuilder.fromCurrentRequest(),
                 page
@@ -101,5 +108,14 @@ public class RecipientFieldResource {
 
         RecipientFieldResponseDto recipientFieldDTO = recipientFieldService.findOne(id);
         return ResponseEntity.ok().body(recipientFieldDTO);
+    }
+
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<RecipientFieldResponseDto> updateActive(
+        @PathVariable Long id,
+        @Valid @RequestBody ActiveUpdateDto dto
+    ) {
+        return ResponseEntity.ok(recipientFieldService.updateActive(id, dto.active()));
     }
 }

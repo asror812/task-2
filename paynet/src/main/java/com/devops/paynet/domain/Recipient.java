@@ -13,7 +13,7 @@ import java.util.List;
 @Entity
 @Table(name = "recipient")
 @SuppressWarnings("common-java:DuplicatedBlocks")
-public class Recipient implements Serializable {
+public class Recipient extends AbstractAuditingEntity<Long> {
 
     @Serial
     private static final long serialVersionUID = 1L;

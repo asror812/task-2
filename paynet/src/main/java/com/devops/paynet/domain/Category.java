@@ -11,7 +11,7 @@ import java.io.Serializable;
 @Entity
 @Table(name = "category")
 @SuppressWarnings("common-java:DuplicatedBlocks")
-public class Category implements Serializable {
+public class Category extends AbstractAuditingEntity<Long> {
 
   @Serial
   private static final long serialVersionUID = 1L;

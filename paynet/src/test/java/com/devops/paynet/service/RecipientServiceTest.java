@@ -20,10 +20,13 @@ import com.devops.paynet.repository.RecipientRepository;
 import com.devops.paynet.repository.CategoryRepository;
 import com.devops.paynet.dto.CheckRequestDto;
 import com.devops.paynet.dto.CheckResponseDto;
+import com.devops.paynet.dto.PayRequestDto;
+import com.devops.paynet.dto.PayResponseDto;
 import com.devops.paynet.dto.RecipientCreateDto;
 import com.devops.paynet.dto.RecipientResponseDto;
 import com.devops.paynet.mapper.RecipientMapper;
-import com.devops.paynet.web.rest.errors.BadRequestAlertException;
+import com.devops.paynet.mapper.RecipientFieldMapper;
+import com.devops.paynet.web.rest.errors.ResourceNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +49,7 @@ class RecipientServiceTest {
     private CategoryRepository categoryRepository;
 
     private final RecipientMapper recipientMapper = new RecipientMapper() {};
+    private final RecipientFieldMapper recipientFieldMapper = new RecipientFieldMapper() {};
 
     @Mock
     private RecipientFieldValueRepository recipientFieldValueRepository;
@@ -69,6 +73,7 @@ class RecipientServiceTest {
             recipientRepository,
             categoryRepository,
             recipientMapper,
+            recipientFieldMapper,
             recipientFieldValueRepository,
             redisTemplate,
             new ObjectMapper()
@@ -116,8 +121,7 @@ class RecipientServiceTest {
         when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.save(request))
-            .isInstanceOf(BadRequestAlertException.class)
-            .satisfies(exception -> assertThat(((BadRequestAlertException) exception).getStatusCode().value()).isEqualTo(400));
+            .isInstanceOf(ResourceNotFoundException.class);
         verify(recipientRepository, never()).save(any(Recipient.class));
     }
 
@@ -131,7 +135,7 @@ class RecipientServiceTest {
 
         CheckResponseDto response = service.checkRecipient(
             3L,
-            new CheckRequestDto(Map.of("regionId", "1", "districtId", "10"))
+            new CheckRequestDto(Map.of("regionId", "1", "districtId", "10"), 10_000L)
         );
 
         assertThat(response.isValid()).isTrue();
@@ -148,7 +152,7 @@ class RecipientServiceTest {
 
         CheckResponseDto response = service.checkRecipient(
             3L,
-            new CheckRequestDto(Map.of("regionId", "2", "districtId", "10"))
+            new CheckRequestDto(Map.of("regionId", "2", "districtId", "10"), 10_000L)
         );
 
         assertThat(response.isValid()).isFalse();
@@ -164,12 +168,73 @@ class RecipientServiceTest {
 
         CheckResponseDto response = service.checkRecipient(
             3L,
-            new CheckRequestDto(Map.of("regionId", "999", "districtId", "999"))
+            new CheckRequestDto(Map.of("regionId", "999", "districtId", "999"), 10_000L)
         );
 
         assertThat(response.isValid()).isFalse();
         assertThat(response.getErrors())
             .contains("regionId contains an unsupported value", "districtId contains an unsupported value");
+    }
+
+    @Test
+    void rejectsPaymentWhenAmountDiffersFromCheckedAmount() throws Exception {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.setIfAbsent(eq("paynet:pay:lock:request-1"), any(String.class), any())).thenReturn(true);
+        when(valueOperations.get("paynet:pay:idempotency:request-1")).thenReturn(null);
+        when(valueOperations.get("paynet:check:check-1")).thenReturn(
+            new ObjectMapper().writeValueAsString(Map.of(
+                "checkId", "check-1",
+                "recipientId", 3L,
+                "recipientName", "Gas",
+                "amount", 10_000L,
+                "fields", Map.of("regionId", "1", "districtId", "10")
+            ))
+        );
+
+        PayResponseDto response = service.payRecipient(
+            3L,
+            new PayRequestDto("check-1", "request-1", Map.of(), 20_000L)
+        );
+
+        assertThat(response.isPaid()).isFalse();
+        assertThat(response.getErrors()).containsExactly("Payment amount differs from checked amount");
+        verify(redisTemplate, never()).delete("paynet:check:check-1");
+    }
+
+    @Test
+    void rejectsInvalidDateWithoutCustomRegex() {
+        RecipientField dateField = new RecipientField();
+        dateField.setId(20L);
+        dateField.setName("billingDate");
+        dateField.setLabel("Billing date");
+        dateField.setType(RecipientFieldType.DATE);
+        dateField.setMethod(RecipientFieldMethod.CHECK);
+        dateField.setRequired(true);
+        dateField.setActive(true);
+        dateField.setSortOrder(1);
+        dateField.setRecipient(recipient);
+        recipient.setRecipientFields(List.of(dateField));
+
+        CheckResponseDto response = service.checkRecipient(
+            3L,
+            new CheckRequestDto(Map.of("billingDate", "not-a-date"), 10_000L)
+        );
+
+        assertThat(response.isValid()).isFalse();
+        assertThat(response.getErrors()).containsExactly("billingDate has invalid DATE format");
+    }
+
+    @Test
+    void rejectsRecipientWithoutActiveFields() {
+        recipient.setRecipientFields(List.of());
+
+        CheckResponseDto response = service.checkRecipient(
+            3L,
+            new CheckRequestDto(Map.of("account", "123"), 10_000L)
+        );
+
+        assertThat(response.isValid()).isFalse();
+        assertThat(response.getErrors()).containsExactly("Recipient has no active fields");
     }
 
     private RecipientField selectField(Long id, String name) {

@@ -1,6 +1,7 @@
 package com.devops.paynet.repository;
 
 import com.devops.paynet.domain.Recipient;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -22,10 +23,6 @@ public interface RecipientRepository extends JpaRepository<Recipient, Long> {
     return this.findOneWithRecipientFields(id);
   }
 
-  default List<Recipient> findAllWithEagerRelationships() {
-    return this.findAllWithToOneRelationships();
-  }
-
   default Page<Recipient> findAllWithEagerRelationships(Pageable pageable) {
     return this.findAllWithToOneRelationships(pageable);
   }
@@ -37,11 +34,6 @@ public interface RecipientRepository extends JpaRepository<Recipient, Long> {
   Page<Recipient> findAllWithToOneRelationships(Pageable pageable);
 
   @Query(
-    "select recipient from Recipient recipient left join fetch recipient.category"
-  )
-  List<Recipient> findAllWithToOneRelationships();
-
-  @Query(
     "select recipient from Recipient recipient left join fetch recipient.category where recipient.id =:id"
   )
   Optional<Recipient> findOneWithToOneRelationships(@Param("id") Long id);
@@ -50,4 +42,22 @@ public interface RecipientRepository extends JpaRepository<Recipient, Long> {
     "select distinct recipient from Recipient recipient left join fetch recipient.category left join fetch recipient.recipientFields where recipient.id =:id"
   )
   Optional<Recipient> findOneWithRecipientFields(@Param("id") Long id);
+
+  @Query(
+    value = "select recipient from Recipient recipient left join fetch recipient.category where recipient.lastModifiedDate > :updatedSince",
+    countQuery = "select count(recipient) from Recipient recipient where recipient.lastModifiedDate > :updatedSince"
+  )
+  Page<Recipient> findAllUpdatedSince(@Param("updatedSince") Instant updatedSince, Pageable pageable);
+
+  @Query(
+    "select distinct recipient from Recipient recipient " +
+    "left join fetch recipient.category " +
+    "left join fetch recipient.recipientFields field " +
+    "left join fetch field.values value " +
+    "where :updatedSince is null " +
+    "or recipient.lastModifiedDate > :updatedSince " +
+    "or field.lastModifiedDate > :updatedSince " +
+    "or value.lastModifiedDate > :updatedSince"
+  )
+  List<Recipient> findCatalogUpdatedSince(@Param("updatedSince") Instant updatedSince);
 }

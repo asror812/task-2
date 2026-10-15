@@ -4,6 +4,9 @@ import com.devops.paynet.domain.Category;
 import com.devops.paynet.repository.CategoryRepository;
 import com.devops.paynet.dto.CategoryCreateDto;
 import com.devops.paynet.dto.CategoryResponseDto;
+import com.devops.paynet.web.rest.errors.ResourceNotFoundException;
+
+import java.time.Instant;
 import com.devops.paynet.mapper.CategoryMapper;
 
 import org.slf4j.Logger;
@@ -48,9 +51,12 @@ public class CategoryService {
    * @return the list of entities.
    */
   @Transactional(readOnly = true)
-  public Page<CategoryResponseDto> findAll(Pageable pageable) {
+  public Page<CategoryResponseDto> findAll(Pageable pageable, Instant updatedSince) {
     LOG.debug("Request to get all Categories");
-    return categoryRepository.findAll(pageable).map(categoryMapper::toResponseDto);
+    Page<Category> categories = updatedSince == null
+      ? categoryRepository.findAll(pageable)
+      : categoryRepository.findAllByLastModifiedDateAfter(updatedSince, pageable);
+    return categories.map(categoryMapper::toResponseDto);
   }
 
   /**
@@ -62,6 +68,14 @@ public class CategoryService {
   public CategoryResponseDto findOne(Long id) {
     LOG.debug("Request to get Category : {}", id);
     return categoryRepository.findById(id).map(categoryMapper::toResponseDto)
-            .orElseThrow(() -> new RuntimeException("Category not found with id " + id));
+            .orElseThrow(() -> new ResourceNotFoundException("Category", id));
+  }
+
+  @Transactional
+  public CategoryResponseDto updateActive(Long id, boolean active) {
+    Category category = categoryRepository.findById(id)
+      .orElseThrow(() -> new ResourceNotFoundException("Category", id));
+    category.setActive(active);
+    return categoryMapper.toResponseDto(categoryRepository.save(category));
   }
 }

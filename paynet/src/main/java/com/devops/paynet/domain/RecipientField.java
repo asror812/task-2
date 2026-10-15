@@ -2,7 +2,6 @@ package com.devops.paynet.domain;
 
 import com.devops.paynet.domain.enumeration.RecipientFieldMethod;
 import com.devops.paynet.domain.enumeration.RecipientFieldType;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
@@ -14,9 +13,15 @@ import java.util.List;
  * A RecipientField.
  */
 @Entity
-@Table(name = "recipient_field")
+@Table(
+  name = "recipient_field",
+  uniqueConstraints = @UniqueConstraint(
+    name = "ux_recipient_field__recipient_name",
+    columnNames = { "recipient_id", "name" }
+  )
+)
 @SuppressWarnings("common-java:DuplicatedBlocks")
-public class RecipientField implements Serializable {
+public class RecipientField extends AbstractAuditingEntity<Long> {
 
   @Serial
   private static final long serialVersionUID = 1L;
@@ -68,12 +73,10 @@ public class RecipientField implements Serializable {
 
   @ManyToOne(optional = false)
   @NotNull
-  @JsonIgnoreProperties(value = { "category" }, allowSetters = true)
   private Recipient recipient;
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "recipientField")
   @OrderBy("sortOrder ASC, id ASC")
-  @JsonIgnoreProperties(value = { "recipientField", "parent" }, allowSetters = true)
   private List<RecipientFieldValue> values;
 
   public Long getId() {

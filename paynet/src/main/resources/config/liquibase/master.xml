@@ -25,6 +25,7 @@
     <include file="config/liquibase/changelog/20261008120000_update_paynet_check_fields.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261009100000_replace_region_district_with_field_values.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261012100000_activate_seed_payment_services.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261015110000_add_catalog_audit_and_constraints.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-constraints-changelog - JHipster will add liquibase constraints changelogs here -->
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
 </databaseChangeLog>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261015110000-1-add-catalog-audit" author="paynet">
+        <addColumn tableName="category">
+            <column name="created_by" type="varchar(50)" defaultValue="system">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp with time zone" defaultValueComputed="${now}"/>
+            <column name="last_modified_by" type="varchar(50)"/>
+            <column name="last_modified_date" type="timestamp with time zone" defaultValueComputed="${now}">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="recipient">
+            <column name="created_by" type="varchar(50)" defaultValue="system">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp with time zone" defaultValueComputed="${now}"/>
+            <column name="last_modified_by" type="varchar(50)"/>
+            <column name="last_modified_date" type="timestamp with time zone" defaultValueComputed="${now}">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="recipient_field">
+            <column name="created_by" type="varchar(50)" defaultValue="system">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp with time zone" defaultValueComputed="${now}"/>
+            <column name="last_modified_by" type="varchar(50)"/>
+            <column name="last_modified_date" type="timestamp with time zone" defaultValueComputed="${now}">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="recipient_field_value">
+            <column name="created_by" type="varchar(50)" defaultValue="system">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp with time zone" defaultValueComputed="${now}"/>
+            <column name="last_modified_by" type="varchar(50)"/>
+            <column name="last_modified_date" type="timestamp with time zone" defaultValueComputed="${now}">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <createIndex tableName="category" indexName="idx_category__last_modified_date">
+            <column name="last_modified_date"/>
+        </createIndex>
+        <createIndex tableName="recipient" indexName="idx_recipient__last_modified_date">
+            <column name="last_modified_date"/>
+        </createIndex>
+        <createIndex tableName="recipient_field" indexName="idx_recipient_field__last_modified_date">
+            <column name="last_modified_date"/>
+        </createIndex>
+        <createIndex tableName="recipient_field_value" indexName="idx_recipient_field_value__last_modified_date">
+            <column name="last_modified_date"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20261015110000-2-unique-recipient-field-name" author="paynet">
+        <addUniqueConstraint
+            tableName="recipient_field"
+            columnNames="recipient_id, name"
+            constraintName="ux_recipient_field__recipient_name"/>
+    </changeSet>
+</databaseChangeLog>

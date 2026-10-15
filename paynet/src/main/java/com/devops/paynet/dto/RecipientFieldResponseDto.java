@@ -2,6 +2,7 @@ package com.devops.paynet.dto;
 
 import com.devops.paynet.domain.enumeration.RecipientFieldMethod;
 import com.devops.paynet.domain.enumeration.RecipientFieldType;
+import java.time.Instant;
 import java.util.List;
 
 @SuppressWarnings("common-java:DuplicatedBlocks")
@@ -20,6 +21,7 @@ public record RecipientFieldResponseDto(
         Long recipientId,
         String recipientName,
         String categoryName,
-        List<RecipientFieldValueResponseDto> values
+        List<RecipientFieldValueResponseDto> values,
+        Instant updatedAt
         ) {
 }

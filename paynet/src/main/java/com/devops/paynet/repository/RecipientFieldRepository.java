@@ -1,7 +1,7 @@
 package com.devops.paynet.repository;
 
 import com.devops.paynet.domain.RecipientField;
-import java.util.List;
+import java.time.Instant;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,10 +20,6 @@ public interface RecipientFieldRepository
     return this.findOneWithToOneRelationships(id);
   }
 
-  default List<RecipientField> findAllWithEagerRelationships() {
-    return this.findAllWithToOneRelationships();
-  }
-
   default Page<RecipientField> findAllWithEagerRelationships(
     Pageable pageable
   ) {
@@ -37,12 +33,18 @@ public interface RecipientFieldRepository
   Page<RecipientField> findAllWithToOneRelationships(Pageable pageable);
 
   @Query(
-    "select recipientField from RecipientField recipientField left join fetch recipientField.recipient"
-  )
-  List<RecipientField> findAllWithToOneRelationships();
-
-  @Query(
     "select recipientField from RecipientField recipientField left join fetch recipientField.recipient where recipientField.id =:id"
   )
   Optional<RecipientField> findOneWithToOneRelationships(@Param("id") Long id);
+
+  @Query(
+    value = "select recipientField from RecipientField recipientField " +
+    "left join fetch recipientField.recipient recipient " +
+    "left join fetch recipient.category " +
+    "where recipientField.lastModifiedDate > :updatedSince",
+    countQuery = "select count(recipientField) from RecipientField recipientField where recipientField.lastModifiedDate > :updatedSince"
+  )
+  Page<RecipientField> findAllUpdatedSince(@Param("updatedSince") Instant updatedSince, Pageable pageable);
+
+  boolean existsByRecipient_IdAndActiveTrue(Long recipientId);
 }

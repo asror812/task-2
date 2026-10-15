@@ -1,6 +1,7 @@
 package com.devops.paynet.web.rest;
 
 import com.devops.paynet.security.SecurityUtils;
+import com.devops.paynet.web.rest.errors.AccountResourceException;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.io.Serial;
 import java.security.Principal;
 import java.util.Map;
 import java.util.Set;
@@ -27,16 +27,6 @@ import java.util.stream.Collectors;
 public class AccountResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(AccountResource.class);
-
-    private static class AccountResourceException extends RuntimeException {
-
-        @Serial
-        private static final long serialVersionUID = 1L;
-
-        private AccountResourceException(String message) {
-            super(message);
-        }
-    }
 
     /**
      * {@code GET  /account} : get the current user.
@@ -112,4 +102,5 @@ public class AccountResource {
             SecurityUtils.extractDetailsFromTokenAttributes(attributes)
         );
     }
+
 }
