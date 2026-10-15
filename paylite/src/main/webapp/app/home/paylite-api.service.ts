@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
 
-export type PaymentStatus = 'PAID' | 'FAILED';
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REVERSED' | 'REFUNDED';
 
 export interface Payment {
   id: number;
@@ -59,6 +59,7 @@ export interface Recipient {
 }
 
 export type RecipientFieldType = 'TEXT' | 'NUMBER' | 'PHONE' | 'AMOUNT' | 'DATE' | 'SELECT';
+export type RecipientFieldMethod = 'CHECK' | 'PAY';
 
 export interface RecipientFieldValue {
   id: number;
@@ -75,7 +76,7 @@ export interface RecipientField {
   name: string;
   label: string;
   validationRegex: string | null;
-  method: 'CHECK' | 'PAY';
+  method: RecipientFieldMethod;
   active: boolean;
   required: boolean;
   type: RecipientFieldType;
@@ -137,12 +138,13 @@ export class PayliteApiService {
     return this.http.get<RecipientPage>(`${this.paymentsUrl}/catalog/recipients`, { params });
   }
 
-  getRecipientFields(recipientId: number): Observable<RecipientField[]> {
-    return this.http.get<RecipientField[]>(`${this.paymentsUrl}/catalog/recipients/${recipientId}/fields`);
+  getRecipientFields(recipientId: number, method: RecipientFieldMethod): Observable<RecipientField[]> {
+    const params = new HttpParams().set('method', method);
+    return this.http.get<RecipientField[]>(`${this.paymentsUrl}/catalog/recipients/${recipientId}/fields`, { params });
   }
 
-  checkPayment(recipientId: number, fields: Record<string, string>): Observable<PaymentCheckResponse> {
-    return this.http.post<PaymentCheckResponse>(`${this.paymentsUrl}/check`, { recipientId, fields });
+  checkPayment(recipientId: number, fields: Record<string, string>, amount: number): Observable<PaymentCheckResponse> {
+    return this.http.post<PaymentCheckResponse>(`${this.paymentsUrl}/check`, { recipientId, fields, amount });
   }
 
   getPayments(page: number, size: number): Observable<PaymentPage> {

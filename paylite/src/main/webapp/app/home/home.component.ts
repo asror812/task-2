@@ -58,9 +58,6 @@ export default class HomeComponent implements OnInit {
 
   readonly paymentForm = inject(FormBuilder).group({
     recipientId: [null as number | null, Validators.required],
-  });
-
-  readonly amountForm = inject(FormBuilder).group({
     amount: [null as number | null, [Validators.required, Validators.min(1)]],
   });
 
@@ -109,7 +106,7 @@ export default class HomeComponent implements OnInit {
       return;
     }
 
-    this.api.getRecipientFields(recipientId).subscribe({
+    this.api.getRecipientFields(recipientId, 'CHECK').subscribe({
       next: fields => {
         this.recipientFields.set(fields);
         this.buildFieldForm(fields);
@@ -127,10 +124,11 @@ export default class HomeComponent implements OnInit {
 
     const recipientId = this.paymentForm.controls.recipientId.value!;
     const fields = this.paymentFields();
+    const amount = this.paymentForm.controls.amount.value!;
     this.clearFeedback();
     this.checking.set(true);
 
-    this.api.checkPayment(recipientId, fields).subscribe({
+    this.api.checkPayment(recipientId, fields, amount).subscribe({
       next: result => {
         this.checking.set(false);
         if (!result.valid || !result.checkId) {
@@ -139,7 +137,6 @@ export default class HomeComponent implements OnInit {
         }
         this.checkResult.set(result);
         this.idempotencyKey = crypto.randomUUID();
-        this.amountForm.reset();
         this.paymentStep.set('confirmation');
       },
       error: response => {
@@ -152,12 +149,12 @@ export default class HomeComponent implements OnInit {
   createPayment(): void {
     const checked = this.checkResult();
     const recipientId = this.paymentForm.controls.recipientId.value;
-    if (this.amountForm.invalid || this.submitting() || !checked?.checkId || !recipientId || !this.idempotencyKey) {
-      this.amountForm.markAllAsTouched();
+    if (this.paymentForm.controls.amount.invalid || this.submitting() || !checked?.checkId || !recipientId || !this.idempotencyKey) {
+      this.paymentForm.controls.amount.markAsTouched();
       return;
     }
 
-    const amount = this.amountForm.controls.amount.value!;
+    const amount = this.paymentForm.controls.amount.value!;
     const fields = this.paymentFields();
     this.clearFeedback();
     this.submitting.set(true);
@@ -408,7 +405,7 @@ export default class HomeComponent implements OnInit {
     this.checkResult.set(null);
     this.idempotencyKey = null;
     this.paymentStep.set('details');
-    this.amountForm.reset();
+    this.paymentForm.controls.amount.reset();
   }
 
   private resetPaymentFlow(): void {

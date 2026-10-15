@@ -112,6 +112,15 @@
               </div>
             }
 
+            <div>
+              <label for="payment-amount">Сумма в тийинах</label>
+              <input id="payment-amount" type="number" min="1" step="1" formControlName="amount" placeholder="10000" />
+              @if (paymentForm.controls.amount.touched && paymentForm.controls.amount.invalid) {
+                <small class="field-error">Сумма должна быть больше нуля.</small>
+              }
+              <small class="amount-note">Комиссия будет рассчитана и списана дополнительно.</small>
+            </div>
+
             <button
               type="submit"
               class="btn-primary btn-block"
@@ -128,6 +137,10 @@
                 <dt>Услуга</dt>
                 <dd>{{ checkResult()?.recipientName ?? selectedRecipient()?.name }}</dd>
               </div>
+              <div>
+                <dt>Сумма</dt>
+                <dd>{{ formatTiyin(paymentForm.controls.amount.value!) }} тийин</dd>
+              </div>
               @for (field of recipientFields(); track field.id) {
                 <div>
                   <dt>{{ field.label }}</dt>
@@ -136,14 +149,7 @@
               }
             </dl>
 
-            <form [formGroup]="amountForm" (ngSubmit)="createPayment()">
-              <label for="payment-amount">Сумма в тийинах</label>
-              <input id="payment-amount" type="number" min="1" step="1" formControlName="amount" placeholder="10000" />
-              @if (amountForm.controls.amount.touched && amountForm.controls.amount.invalid) {
-                <small class="field-error">Сумма должна быть больше нуля.</small>
-              }
-              <small class="amount-note">Комиссия будет рассчитана и списана дополнительно.</small>
-
+            <form (ngSubmit)="createPayment()">
               <div class="confirmation-actions">
                 <button type="button" class="btn-ghost" [disabled]="submitting()" (click)="editPaymentDetails()">Изменить</button>
                 <button type="submit" class="btn-primary" [disabled]="submitting()">
@@ -194,8 +200,11 @@
                   <td data-label="Статус">
                     <span
                       class="status"
+                      [class.status-pending]="payment.status === 'PENDING'"
                       [class.status-paid]="payment.status === 'PAID'"
                       [class.status-failed]="payment.status === 'FAILED'"
+                      [class.status-reversed]="payment.status === 'REVERSED'"
+                      [class.status-refunded]="payment.status === 'REFUNDED'"
                     >
                       {{ payment.status }}
                     </span>
