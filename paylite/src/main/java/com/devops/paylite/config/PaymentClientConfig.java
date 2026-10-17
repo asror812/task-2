@@ -2,6 +2,7 @@ package com.devops.paylite.config;
 
 import feign.RequestInterceptor;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
@@ -9,7 +10,9 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
 public class PaymentClientConfig {
 
     @Bean
-    public RequestInterceptor paynetServiceTokenInterceptor(OAuth2AuthorizedClientManager authorizedClientManager) {
+    public RequestInterceptor paynetServiceTokenInterceptor(
+        @Qualifier("paynetAuthorizedClientManager") OAuth2AuthorizedClientManager authorizedClientManager
+    ) {
         return requestTemplate -> {
             OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest
                 .withClientRegistrationId("paynet")

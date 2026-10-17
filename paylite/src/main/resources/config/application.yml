@@ -156,7 +156,7 @@ spring:
           paynet:
             provider: oidc
             client-id: paylite-service
-            client-secret: ${PAYNET_CLIENT_SECRET}
+            client-secret: ${PAYNET_CLIENT_SECRET:dbf75a3f-67ca-4634-bb17-8f97781063d6}
             authorization-grant-type: client_credentials
             scope: openid, profile, email
   task:
