@@ -30,6 +30,7 @@ public class PaymentOutboxPublisher {
     @Transactional
     public void publishPendingEvents() {
         int safeBatchSize = Math.max(1, batchSize);
+
         for (PaymentOutboxEvent event : outboxEventRepository.findUnpublishedForUpdate(PageRequest.of(0, safeBatchSize))) {
             if (!publish(event)) {
                 break;
@@ -45,6 +46,7 @@ public class PaymentOutboxPublisher {
                 PaymentMessagingConfiguration.PROCESS_ROUTING_KEY,
                 new PaymentProcessMessage(event.getPaymentId())
             );
+
             event.setPublishedAt(Instant.now());
             event.setLastError(null);
             return true;

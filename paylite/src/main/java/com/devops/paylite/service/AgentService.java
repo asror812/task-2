@@ -72,6 +72,7 @@ public class AgentService {
             ) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key already used");
             }
+
             return toTopUpResponse(existingLedger);
         }
 
@@ -86,6 +87,7 @@ public class AgentService {
         } catch (ArithmeticException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Top-up amount is too large", exception);
         }
+
         agent.setBalance(balanceAfter);
 
         TopUpLedger topUpLedger = TopUpLedger.builder()
@@ -104,7 +106,9 @@ public class AgentService {
 
     private void validateTopUpAmount(Long amount) {
         if (amount > topUpProperties.getMaxAmount()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Top-up amount exceeds the maximum limit");
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Top-up amount exceeds the maximum limit");
         }
     }
 

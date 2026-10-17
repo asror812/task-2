@@ -7,7 +7,6 @@ public record RecipientFieldCatalogDto(
     String name,
     String label,
     String validationRegex,
-    String method,
     Boolean active,
     Boolean required,
     String type,

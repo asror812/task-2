@@ -3,8 +3,8 @@ package com.devops.paylite.repository;
 import com.devops.paylite.domain.Payment;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
-import java.util.List;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,9 +18,11 @@ import org.springframework.stereotype.Repository;
 @SuppressWarnings("unused")
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
-    Page<Payment> findAllByAgent_Login(String account, Pageable pageable);
+    Page<Payment> findAllByAgent_Login(String login, Pageable pageable);
 
     Optional<Payment> findByIdempotencyKey(String idempotencyKey);
+
+    Optional<Payment> findByCheckId(String checkId);
 
     @EntityGraph(attributePaths = "agent")
     Optional<Payment> findOneWithAgentById(Long id);

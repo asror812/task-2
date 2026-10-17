@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261017100000-1-rename-payment-account" author="paylite">
+        <renameColumn
+            tableName="payment"
+            oldColumnName="account"
+            newColumnName="payment_reference"
+            columnDataType="varchar(255)"/>
+        <modifyDataType
+            tableName="payment"
+            columnName="payment_reference"
+            newDataType="text"/>
+    </changeSet>
+
+    <changeSet id="20261017100000-2-unique-payment-check-id" author="paylite">
+        <addUniqueConstraint
+            tableName="payment"
+            columnNames="check_id"
+            constraintName="ux_payment__check_id"/>
+    </changeSet>
+
+    <changeSet id="20261017100000-3-drop-payment-request-payload" author="paylite">
+        <dropColumn tableName="payment" columnName="request_payload"/>
+    </changeSet>
+</databaseChangeLog>

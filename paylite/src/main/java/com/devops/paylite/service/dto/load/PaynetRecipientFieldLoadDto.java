@@ -1,6 +1,5 @@
 package com.devops.paylite.service.dto.load;
 
-import com.devops.paylite.domain.enumeration.RecipientFieldMethod;
 import com.devops.paylite.domain.enumeration.RecipientFieldType;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -18,7 +17,6 @@ public class PaynetRecipientFieldLoadDto {
     private String name;
     private String label;
     private String validationRegex;
-    private RecipientFieldMethod method;
     private Boolean active;
     private Boolean required;
     private RecipientFieldType type;

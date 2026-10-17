@@ -1,6 +1,5 @@
 package com.devops.paylite.domain;
 
-import com.devops.paylite.domain.enumeration.RecipientFieldMethod;
 import com.devops.paylite.domain.enumeration.RecipientFieldType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -35,10 +34,6 @@ public class PaynetRecipientField {
 
     @Column(name = "validation_regex", length = 255)
     private String validationRegex;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "method", nullable = false)
-    private RecipientFieldMethod method;
 
     @Column(name = "active", nullable = false)
     private Boolean active;

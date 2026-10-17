@@ -148,7 +148,6 @@ public class PaynetCatalogWriter {
             entity.setName(dto.getName());
             entity.setLabel(dto.getLabel());
             entity.setValidationRegex(dto.getValidationRegex());
-            entity.setMethod(dto.getMethod());
             entity.setActive(dto.getActive());
             entity.setRequired(dto.getRequired());
             entity.setType(dto.getType());

@@ -26,4 +26,7 @@
     <include file="config/liquibase/changelog/20261015123000_add_payment_processing_state.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261015124000_add_catalog_sync_lock.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20261015150000_add_payment_outbox.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261017100000_rename_payment_account.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261017110000_simplify_payment_contract.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20261017120000_remove_pay_recipient_fields.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

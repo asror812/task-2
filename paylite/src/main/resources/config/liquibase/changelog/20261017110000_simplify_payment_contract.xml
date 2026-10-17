@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20261017110000-1-remove-unused-outbox-event-type" author="paylite">
+        <dropColumn tableName="payment_outbox_event" columnName="event_type"/>
+    </changeSet>
+
+    <changeSet id="20261017110000-2-verify-supported-payment-statuses" author="paylite">
+        <preConditions onFail="HALT">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM payment WHERE status IN ('REVERSED', 'REFUNDED')
+            </sqlCheck>
+        </preConditions>
+        <comment>REVERSED and REFUNDED were never produced by the application and are no longer supported.</comment>
+        <sql>
+            ALTER TABLE payment
+            ADD CONSTRAINT chk_payment_status
+            CHECK (status IN ('PENDING', 'PROCESSING', 'PAID', 'FAILED', 'RECONCILIATION_REQUIRED'));
+        </sql>
+    </changeSet>
+</databaseChangeLog>

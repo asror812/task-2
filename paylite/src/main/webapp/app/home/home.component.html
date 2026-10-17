@@ -141,6 +141,10 @@
                 <dt>Сумма</dt>
                 <dd>{{ formatTiyin(paymentForm.controls.amount.value!) }} тийин</dd>
               </div>
+              <div>
+                <dt>Реквизиты</dt>
+                <dd>{{ checkResult()?.paymentReference }}</dd>
+              </div>
               @for (field of recipientFields(); track field.id) {
                 <div>
                   <dt>{{ field.label }}</dt>
@@ -149,14 +153,14 @@
               }
             </dl>
 
-            <form (ngSubmit)="createPayment()">
+            <div>
               <div class="confirmation-actions">
                 <button type="button" class="btn-ghost" [disabled]="submitting()" (click)="editPaymentDetails()">Изменить</button>
-                <button type="submit" class="btn-primary" [disabled]="submitting()">
+                <button type="button" class="btn-primary" [disabled]="submitting()" (click)="createPayment()">
                   {{ submitting() ? 'Обработка…' : 'Подтвердить и оплатить' }}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         }
       </article>
@@ -180,7 +184,7 @@
           <table>
             <thead>
               <tr>
-                <th>Счёт</th>
+                <th>Реквизиты</th>
                 <th>Сумма</th>
                 <th>Комиссия</th>
                 <th>Итого</th>
@@ -191,8 +195,8 @@
             <tbody>
               @for (payment of payments(); track payment.id) {
                 <tr>
-                  <td data-label="Счёт">
-                    <strong>{{ payment.account }}</strong>
+                  <td data-label="Реквизиты">
+                    <strong>{{ payment.paymentReference }}</strong>
                   </td>
                   <td data-label="Сумма">{{ formatTiyin(payment.amount) }}</td>
                   <td data-label="Комиссия">{{ formatTiyin(payment.commissionAmount) }}</td>
@@ -201,10 +205,10 @@
                     <span
                       class="status"
                       [class.status-pending]="payment.status === 'PENDING'"
+                      [class.status-processing]="payment.status === 'PROCESSING'"
                       [class.status-paid]="payment.status === 'PAID'"
                       [class.status-failed]="payment.status === 'FAILED'"
-                      [class.status-reversed]="payment.status === 'REVERSED'"
-                      [class.status-refunded]="payment.status === 'REFUNDED'"
+                      [class.status-reconciliation]="payment.status === 'RECONCILIATION_REQUIRED'"
                     >
                       {{ payment.status }}
                     </span>
@@ -236,9 +240,8 @@
       <div class="admin-action">
         @if (catalogSync(); as sync) {
           <div class="sync-summary">
-            Последняя синхронизация: {{ (sync.finishedAt ?? sync.startedAt) | date: 'dd.MM.yyyy HH:mm:ss' }} —
-            {{ sync.status }}. {{ sync.recipientsProcessed }} услуг, {{ sync.fieldsProcessed }} полей,
-            {{ sync.valuesProcessed }} значений.
+            Последняя синхронизация: {{ (sync.finishedAt ?? sync.startedAt) | date: 'dd.MM.yyyy HH:mm:ss' }} — {{ sync.status }}.
+            {{ sync.recipientsProcessed }} услуг, {{ sync.fieldsProcessed }} полей, {{ sync.valuesProcessed }} значений.
           </div>
         } @else {
           <div class="sync-summary">Каталог ещё не синхронизировался.</div>
@@ -269,12 +272,7 @@
             <div class="pagination-bar collection-pagination">
               <button type="button" class="btn-ghost" [disabled]="agentPage() === 0" (click)="previousAgentPage()">← Назад</button>
               <span>Страница {{ agentPage() + 1 }} из {{ agentTotalPages() }}</span>
-              <button
-                type="button"
-                class="btn-ghost"
-                [disabled]="agentPage() + 1 >= agentTotalPages()"
-                (click)="nextAgentPage()"
-              >
+              <button type="button" class="btn-ghost" [disabled]="agentPage() + 1 >= agentTotalPages()" (click)="nextAgentPage()">
                 Вперёд →
               </button>
             </div>

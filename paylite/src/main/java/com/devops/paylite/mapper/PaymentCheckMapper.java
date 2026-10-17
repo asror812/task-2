@@ -1,9 +1,9 @@
 package com.devops.paylite.mapper;
 
-import com.devops.paylite.service.dto.paynet.PaynetCheckRequestDto;
-import com.devops.paylite.service.dto.paynet.PaynetCheckResponseDto;
 import com.devops.paylite.service.dto.payment.PaymentCheckRequestDto;
 import com.devops.paylite.service.dto.payment.PaymentCheckResponseDto;
+import com.devops.paylite.service.dto.paynet.PaynetCheckRequestDto;
+import com.devops.paylite.service.dto.paynet.PaynetCheckResponseDto;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -18,6 +18,7 @@ public class PaymentCheckMapper {
             dto.isValid(),
             dto.getRecipientName(),
             dto.getCheckId(),
+            dto.getPaymentReference(),
             dto.getErrors()
         );
     }

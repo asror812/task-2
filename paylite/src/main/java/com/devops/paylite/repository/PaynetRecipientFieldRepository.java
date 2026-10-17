@@ -1,7 +1,6 @@
 package com.devops.paylite.repository;
 
 import com.devops.paylite.domain.PaynetRecipientField;
-import com.devops.paylite.domain.enumeration.RecipientFieldMethod;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -23,10 +22,7 @@ public interface PaynetRecipientFieldRepository extends JpaRepository<PaynetReci
         "values",
         "values.parent"
     })
-    List<PaynetRecipientField> findAllByRecipientPaynetIdAndActiveTrueAndMethodOrderBySortOrderAscIdAsc(
-        Long recipientPaynetId,
-        RecipientFieldMethod method
-    );
+    List<PaynetRecipientField> findAllByRecipientPaynetIdAndActiveTrueOrderBySortOrderAscIdAsc(Long recipientPaynetId);
 
     @Modifying(flushAutomatically = true)
     @Query(

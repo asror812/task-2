@@ -16,7 +16,7 @@ public class PaymentDTO implements Serializable {
     private Long id;
 
     @NotNull
-    private String account;
+    private String paymentReference;
 
     @NotNull
     private Long amount;
@@ -25,26 +25,10 @@ public class PaymentDTO implements Serializable {
 
     private Long totalAmount;
 
-    private String checkId;
-
-    private Long recipientId;
-
-    private String paynetPaymentId;
-
-    private String idempotencyKey;
-
     @NotNull
     private PaymentStatus status;
 
     private Instant createdDate;
-
-    private Instant updatedDate;
-
-    private Integer attemptCount;
-
-    private String lastError;
-
-    private AgentDTO agent;
 
     @Override
     public boolean equals(Object o) {
@@ -76,7 +60,6 @@ public class PaymentDTO implements Serializable {
             ", totalAmount=" + getTotalAmount() +
             ", status='" + getStatus() + "'" +
             ", createdDate='" + getCreatedDate() + "'" +
-            ", agent=" + getAgent() +
             "}";
     }
 }

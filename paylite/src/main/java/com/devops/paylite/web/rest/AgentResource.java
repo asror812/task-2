@@ -41,7 +41,9 @@ public class AgentResource {
 
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping("/{id}/topup")
-    public ResponseEntity<TopUpResponseDto> topUp(@PathVariable Long id, @Valid @RequestBody TopUpRequestDto dto) {
+    public ResponseEntity<TopUpResponseDto> topUp(
+        @PathVariable Long id,
+        @Valid @RequestBody TopUpRequestDto dto) {
         LOG.debug("REST request to top up Agent: {}", id);
 
         return ResponseEntity.ok(agentService.topUp(id, dto));

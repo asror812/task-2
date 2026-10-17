@@ -4,13 +4,12 @@ entity Agent {
 }
 
 entity Payment {
-  account String required,
+  paymentReference String required,
   amount Long required,
   commissionAmount Long,
   totalAmount Long,
   checkId String,
   recipientId Long,
-  requestPayload TextBlob,
   paynetPaymentId String,
   idempotencyKey String unique,
   status PaymentStatus required,
@@ -25,8 +24,6 @@ enum PaymentStatus {
   PROCESSING,
   PAID,
   FAILED,
-  REVERSED,
-  REFUNDED,
   RECONCILIATION_REQUIRED
 }
 

@@ -106,7 +106,7 @@ export default class HomeComponent implements OnInit {
       return;
     }
 
-    this.api.getRecipientFields(recipientId, 'CHECK').subscribe({
+    this.api.getRecipientFields(recipientId).subscribe({
       next: fields => {
         this.recipientFields.set(fields);
         this.buildFieldForm(fields);
@@ -148,25 +148,17 @@ export default class HomeComponent implements OnInit {
 
   createPayment(): void {
     const checked = this.checkResult();
-    const recipientId = this.paymentForm.controls.recipientId.value;
-    if (this.paymentForm.controls.amount.invalid || this.submitting() || !checked?.checkId || !recipientId || !this.idempotencyKey) {
-      this.paymentForm.controls.amount.markAsTouched();
+    if (this.submitting() || !checked?.checkId || !this.idempotencyKey) {
       return;
     }
 
-    const amount = this.paymentForm.controls.amount.value!;
-    const fields = this.paymentFields();
     this.clearFeedback();
     this.submitting.set(true);
 
     this.api
       .createPayment({
-        recipientId,
         checkId: checked.checkId,
         idempotencyKey: this.idempotencyKey,
-        fields,
-        account: this.paymentReference(fields),
-        amount,
       })
       .subscribe({
         next: payment => {
@@ -195,7 +187,7 @@ export default class HomeComponent implements OnInit {
   }
 
   fieldInputType(field: RecipientField): string {
-    if (field.type === 'NUMBER' || field.type === 'AMOUNT') return 'number';
+    if (field.type === 'NUMBER') return 'number';
     if (field.type === 'PHONE') return 'tel';
     if (field.type === 'DATE') return 'date';
     return 'text';
@@ -360,7 +352,7 @@ export default class HomeComponent implements OnInit {
     this.api.getRecipients(this.recipientPage(), this.recipientPageSize).subscribe({
       next: response => {
         this.recipients.set(response.content);
-        this.recipientTotalPages.set(response.totalPages);
+        this.recipientTotalPages.set(response.page.totalPages);
       },
       error: response => this.error.set(this.readError(response)),
     });
@@ -392,15 +384,6 @@ export default class HomeComponent implements OnInit {
     return { ...this.fieldForm.getRawValue() } as Record<string, string>;
   }
 
-  private paymentReference(fields: Record<string, string>): string {
-    const preferred = fields['accountNumber'] || fields['phoneNumber'] || '';
-    if (preferred.trim()) {
-      return preferred.trim();
-    }
-    const firstValue = Object.values(fields).find(value => value.trim());
-    return firstValue === undefined ? (this.selectedRecipient()?.name ?? 'payment') : firstValue.trim();
-  }
-
   private invalidateCheck(): void {
     this.checkResult.set(null);
     this.idempotencyKey = null;
@@ -419,7 +402,7 @@ export default class HomeComponent implements OnInit {
     this.api.getAgents(this.agentPage(), this.agentPageSize).subscribe({
       next: response => {
         this.agents.set(response.content);
-        this.agentTotalPages.set(response.totalPages);
+        this.agentTotalPages.set(response.page.totalPages);
       },
       error: response => this.error.set(this.readError(response)),
     });
@@ -430,8 +413,8 @@ export default class HomeComponent implements OnInit {
     this.api.getPayments(this.page(), this.pageSize).subscribe({
       next: response => {
         this.payments.set(response.content);
-        this.totalElements.set(response.totalElements);
-        this.totalPages.set(response.totalPages);
+        this.totalElements.set(response.page.totalElements);
+        this.totalPages.set(response.page.totalPages);
         this.loading.set(false);
       },
       error: response => {

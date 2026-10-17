@@ -1,7 +1,6 @@
 package com.devops.paylite.web.rest;
 
 import com.devops.paylite.domain.enumeration.PaymentStatus;
-import com.devops.paylite.domain.enumeration.RecipientFieldMethod;
 import com.devops.paylite.service.PaymentService;
 import com.devops.paylite.service.dto.payment.PaymentCheckRequestDto;
 import com.devops.paylite.service.dto.payment.PaymentCheckResponseDto;
@@ -46,11 +45,8 @@ public class PaymentResource {
 
     @PreAuthorize("hasAuthority('ROLE_AGENT')")
     @GetMapping("/catalog/recipients/{recipientId}/fields")
-    public ResponseEntity<List<RecipientFieldCatalogDto>> getRecipientFields(
-        @PathVariable Long recipientId,
-        @RequestParam RecipientFieldMethod method
-    ) {
-        return ResponseEntity.ok(paymentService.getRecipientFields(recipientId, method));
+    public ResponseEntity<List<RecipientFieldCatalogDto>> getRecipientFields(@PathVariable Long recipientId) {
+        return ResponseEntity.ok(paymentService.getRecipientFields(recipientId));
     }
 
     /**
@@ -77,7 +73,10 @@ public class PaymentResource {
      */
     @PreAuthorize("hasAuthority('ROLE_AGENT')")
     @PostMapping
-    public ResponseEntity<PaymentDTO> createPayment(@Valid @RequestBody PaymentCreateRequestDto createDto) throws URISyntaxException {
+    public ResponseEntity<PaymentDTO> createPayment(
+        @Valid @RequestBody PaymentCreateRequestDto createDto)
+        throws URISyntaxException {
+
         LOG.debug("REST request to create Payment : {}", createDto);
 
         PaymentDTO paymentDTO = paymentService.create(createDto);

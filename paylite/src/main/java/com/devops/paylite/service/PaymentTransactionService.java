@@ -2,21 +2,23 @@ package com.devops.paylite.service;
 
 import com.devops.paylite.domain.Agent;
 import com.devops.paylite.domain.Payment;
+import com.devops.paylite.domain.PaymentOutboxEvent;
 import com.devops.paylite.domain.enumeration.PaymentStatus;
 import com.devops.paylite.repository.AgentRepository;
-import com.devops.paylite.repository.PaymentRepository;
 import com.devops.paylite.repository.PaymentOutboxEventRepository;
-import com.devops.paylite.domain.PaymentOutboxEvent;
+import com.devops.paylite.repository.PaymentRepository;
 import com.devops.paylite.service.dto.payment.PaymentCreateRequestDto;
+import com.devops.paylite.service.dto.paynet.PaynetCheckDetailsDto;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,7 +30,7 @@ public class PaymentTransactionService {
     private final PaymentRepository paymentRepository;
     private final AgentRepository agentRepository;
     private final PaymentOutboxEventRepository outboxEventRepository;
-    private final static Logger LOG = LoggerFactory.getLogger(PaymentTransactionService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PaymentTransactionService.class);
 
     @Value("${payment.max-attempts:4}")
     private int maxAttempts;
@@ -36,20 +38,25 @@ public class PaymentTransactionService {
     @Transactional
     public Payment prepare(
         PaymentCreateRequestDto dto,
+        PaynetCheckDetailsDto checkDetails,
         String login,
         long commissionAmount,
-        long totalAmount,
-        String requestPayload
+        long totalAmount
     ) {
         Agent agent = agentRepository
             .findByLoginForUpdate(login)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Agent not found"));
 
         Payment existing = paymentRepository.findByIdempotencyKey(dto.getIdempotencyKey()).orElse(null);
+
         if (existing != null) {
             validateReplay(existing, dto, login);
             return existing;
         }
+
+        paymentRepository.findByCheckId(dto.getCheckId()).ifPresent(payment -> {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Check ID already used for another payment");
+        });
 
         Instant now = Instant.now();
         PaymentStatus status = agent.getBalance() >= totalAmount ? PaymentStatus.PENDING : PaymentStatus.FAILED;
@@ -60,13 +67,12 @@ public class PaymentTransactionService {
         }
 
         Payment payment = Payment.builder()
-            .account(dto.getAccount())
-            .amount(dto.getAmount())
+            .paymentReference(checkDetails.paymentReference())
+            .amount(checkDetails.amount())
             .totalAmount(totalAmount)
             .commissionAmount(commissionAmount)
             .checkId(dto.getCheckId())
-            .recipientId(dto.getRecipientId())
-            .requestPayload(requestPayload)
+            .recipientId(checkDetails.recipientId())
             .idempotencyKey(dto.getIdempotencyKey())
             .status(status)
             .agent(agent)
@@ -77,9 +83,11 @@ public class PaymentTransactionService {
             .build();
 
         Payment savedPayment = paymentRepository.saveAndFlush(payment);
+
         if (savedPayment.getStatus() == PaymentStatus.PENDING) {
-            outboxEventRepository.save(PaymentOutboxEvent.paymentCreated(savedPayment.getId()));
+            outboxEventRepository.save(PaymentOutboxEvent.forPayment(savedPayment.getId()));
         }
+
         return savedPayment;
     }
 
@@ -91,14 +99,33 @@ public class PaymentTransactionService {
     }
 
     @Transactional(readOnly = true)
-    public Payment findReplay(String idempotencyKey, PaymentCreateRequestDto dto, String login) {
-        Payment payment = paymentRepository
-            .findByIdempotencyKey(idempotencyKey)
-            .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.CONFLICT, "Concurrent payment creation failed"));
+    public Payment resolveCreationConstraintViolation(
+        PaymentCreateRequestDto dto,
+        String login,
+        DataIntegrityViolationException exception
+    ) {
+        Optional<Payment> idempotentReplay = paymentRepository.findByIdempotencyKey(dto.getIdempotencyKey());
+        if (idempotentReplay.isPresent()) {
+            Payment payment = idempotentReplay.get();
+            validateReplay(payment, dto, login);
+            return payment;
+        }
 
-        validateReplay(payment, dto, login);
-        return payment;
+        if (paymentRepository.findByCheckId(dto.getCheckId()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Check ID already used for another payment", exception);
+        }
+
+        throw exception;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Payment> findReplayIfPresent(PaymentCreateRequestDto dto, String login) {
+        return paymentRepository
+            .findByIdempotencyKey(dto.getIdempotencyKey())
+            .map(payment -> {
+                validateReplay(payment, dto, login);
+                return payment;
+            });
     }
 
     @Transactional
@@ -113,6 +140,7 @@ public class PaymentTransactionService {
         payment.setAttemptCount(payment.getAttemptCount() + 1);
         payment.setUpdatedDate(Instant.now());
         payment.setLastError(null);
+
         return Optional.of(paymentRepository.save(payment));
     }
 
@@ -199,7 +227,7 @@ public class PaymentTransactionService {
             payment.setStatus(PaymentStatus.PENDING);
             payment.setUpdatedDate(now);
             payment.setLastError("Recovered by safety reconciliation");
-            outboxEventRepository.save(PaymentOutboxEvent.paymentRecoveryRequested(payment.getId()));
+            outboxEventRepository.save(PaymentOutboxEvent.forPayment(payment.getId()));
         });
         paymentRepository.saveAll(stalePayments);
         return stalePayments.size();
@@ -216,12 +244,7 @@ public class PaymentTransactionService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key already used");
         }
 
-        if (
-            !dto.getAmount().equals(payment.getAmount()) ||
-            !dto.getAccount().equals(payment.getAccount()) ||
-            !dto.getCheckId().equals(payment.getCheckId()) ||
-            !dto.getRecipientId().equals(payment.getRecipientId())
-        ) {
+        if (!dto.getCheckId().equals(payment.getCheckId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key already used for another payment");
         }
     }

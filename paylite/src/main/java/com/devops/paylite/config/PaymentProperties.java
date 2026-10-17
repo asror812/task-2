@@ -33,6 +33,21 @@ public class PaymentProperties {
     @Min(value = 1, message = "Maximum amount must be greater than zero")
     private Long maxAmount = 100_000_000L;
 
+    @Min(value = 1, message = "Maximum attempts must be greater than zero")
+    private int maxAttempts = 4;
+
+    @Min(value = 1, message = "Outbox batch size must be greater than zero")
+    private int outboxBatchSize = 50;
+
+    @Min(value = 1, message = "Outbox publish delay must be greater than zero")
+    private long outboxPublishDelayMs = 1_000L;
+
+    @Min(value = 1, message = "Reconciliation delay must be greater than zero")
+    private long reconciliationDelayMs = 900_000L;
+
+    @Min(value = 1, message = "Reconciliation stale threshold must be greater than zero")
+    private long reconciliationStaleAfterMs = 900_000L;
+
     @AssertTrue(message = "Minimum amount must not exceed maximum amount")
     public boolean isAmountRangeValid() {
         return minAmount == null || maxAmount == null || minAmount <= maxAmount;

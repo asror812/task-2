@@ -36,6 +36,7 @@ public class PaymentMessageConsumer {
             paymentTransactionService.markReconciliationRequired(payment.getId());
 
             LOG.warn("Payment is being moved to the dead letter queue id={} attempts={}", payment.getId(), payment.getAttemptCount());
+
             messagePublisher.publish(
                 PaymentMessagingConfiguration.DEAD_LETTER_QUEUE,
                 message

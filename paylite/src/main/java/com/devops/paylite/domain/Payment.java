@@ -27,8 +27,8 @@ public class Payment implements Serializable {
     private Long id;
 
     @NotNull
-    @Column(name = "account", nullable = false)
-    private String account;
+    @Column(name = "payment_reference", nullable = false, columnDefinition = "text")
+    private String paymentReference;
 
     @NotNull
     @Column(name = "amount", nullable = false)
@@ -40,14 +40,11 @@ public class Payment implements Serializable {
     @Column(name = "total_amount")
     private Long totalAmount;
 
-    @Column(name = "check_id")
+    @Column(name = "check_id", unique = true)
     private String checkId;
 
     @Column(name = "recipient_id")
     private Long recipientId;
-
-    @Column(name = "request_payload", columnDefinition = "text")
-    private String requestPayload;
 
     @Column(name = "paynet_payment_id")
     private String paynetPaymentId;

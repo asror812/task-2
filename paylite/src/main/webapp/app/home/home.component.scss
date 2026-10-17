@@ -414,7 +414,8 @@ table {
   background: #ddf7ee;
 }
 
-.status-pending {
+.status-pending,
+.status-processing {
   color: #8a5a08;
   background: #fff2cc;
 }
@@ -424,8 +425,7 @@ table {
   background: #fde6e8;
 }
 
-.status-reversed,
-.status-refunded {
+.status-reconciliation {
   color: #5b4a9e;
   background: #eee9ff;
 }

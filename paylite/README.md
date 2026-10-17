@@ -40,7 +40,7 @@ Liquibase -> sxema migratsiyalari va boshlang'ich Agent yozuvlari
 Asosiy entity'lar:
 
 - `Agent`: Keycloak foydalanuvchi logini va uning tiyindagi balansi.
-- `Payment`: hisob raqami, summa, komissiya, umumiy summa, holat, yaratilgan vaqt va egasi bo'lgan agent.
+- `Payment`: CHECK vaqtida shakllangan to'lov rekvizitlari (`paymentReference`), summa, komissiya, umumiy summa, holat, yaratilgan vaqt va egasi bo'lgan agent.
 - `TopUpLedger`: administrator bajargan balans to'ldirishlar auditi.
 - `PaynetCategory`, `PaynetRecipient`, `PaynetRecipientField`, `PaynetRecipientFieldValue`: lokal Paynet katalogi.
 - `PaynetCatalogSync`: katalog sinxronizatsiyasi natijasi va vaqti.
@@ -69,7 +69,7 @@ Hisoblangan komissiya `RoundingMode.HALF_UP` yordamida eng yaqin butun tiyingach
 - Balans umumiy summaga teng yoki undan katta bo'lsa, summa balansdan yechiladi va to'lov `PAID` holatida saqlanadi.
 - Balans yetarli bo'lmasa, balans o'zgarmaydi va to'lov `FAILED` holatida saqlanadi; API HTTP `422` qaytaradi.
 - Balansdan yechish va to'lovni saqlash bitta `@Transactional` service operatsiyasi ichida bajariladi. Saqlashda xato yuz bersa, tranzaksiya rollback qilinadi.
-- Hisob raqami va xizmat maydonlari tanlangan Paynet xizmati orqali tekshiriladi. To'lov va top-up summalari musbat bo'lishi shart. Top-up uchun yuqori chegara `TOP_UP_MAX_AMOUNT` orqali sozlanadi (standart qiymat: `100000000` tiyin).
+- Xizmat maydonlari CHECK bosqichida Paynet orqali tekshiriladi va keyingi PAY so'rovi aynan shu saqlangan ma'lumotlardan foydalanadi. To'lov va top-up summalari musbat bo'lishi shart. Top-up uchun yuqori chegara `TOP_UP_MAX_AMOUNT` orqali sozlanadi (standart qiymat: `100000000` tiyin).
 - Agent faqat autentifikatsiyadan o'tgan o'z loginiga tegishli to'lovlarni ko'ra oladi.
 
 ## Lokal ishga tushirish
@@ -151,19 +151,19 @@ Keycloak realm umumiy loyihadagi `realm-config` papkasidan import qilinadi.
 
 ## API
 
-| Method | Endpoint                       | Rol          | Tavsif                                   |
-| ------ | ------------------------------ | ------------ | ---------------------------------------- |
-| `GET`  | `/api/payments/catalog/recipients?page=0&size=20` | `ROLE_AGENT` | Lokal katalogdagi faol xizmatlar |
+| Method | Endpoint                                                    | Rol          | Tavsif                                   |
+| ------ | ----------------------------------------------------------- | ------------ | ---------------------------------------- |
+| `GET`  | `/api/payments/catalog/recipients?page=0&size=20`           | `ROLE_AGENT` | Lokal katalogdagi faol xizmatlar         |
 | `GET`  | `/api/payments/catalog/recipients/{id}/fields?method=CHECK` | `ROLE_AGENT` | Xizmatning `CHECK` yoki `PAY` maydonlari |
-| `POST` | `/api/payments/check`          | `ROLE_AGENT` | Paynet orqali maydonlarni tekshirish     |
-| `POST` | `/api/payments`                | `ROLE_AGENT` | To'lovni navbatga qo'yish (`202`)        |
-| `GET`  | `/api/payments/{id}`           | `ROLE_AGENT` | Bitta to'lovning joriy holatini olish    |
-| `GET`  | `/api/payments?page=0&size=10` | `ROLE_AGENT` | Joriy agent to'lovlarini sahifalab olish |
-| `GET`  | `/api/agents/me/balance`       | `ROLE_AGENT` | Joriy agent balansini olish              |
-| `GET`  | `/api/agents?page=0&size=20`   | `ROLE_ADMIN` | Agentlarni sahifalab olish                |
-| `POST` | `/api/agents/{id}/topup`       | `ROLE_ADMIN` | Agent balansini to'ldirish               |
-| `POST` | `/api/admin/paynet-catalog/sync` | `ROLE_ADMIN` | Paynet katalogini qo'lda sinxronlash   |
-| `GET`  | `/api/admin/paynet-catalog/latest` | `ROLE_ADMIN` | Oxirgi sinxronizatsiya natijasi      |
+| `POST` | `/api/payments/check`                                       | `ROLE_AGENT` | Paynet orqali maydonlarni tekshirish     |
+| `POST` | `/api/payments`                                             | `ROLE_AGENT` | To'lovni navbatga qo'yish (`202`)        |
+| `GET`  | `/api/payments/{id}`                                        | `ROLE_AGENT` | Bitta to'lovning joriy holatini olish    |
+| `GET`  | `/api/payments?page=0&size=10`                              | `ROLE_AGENT` | Joriy agent to'lovlarini sahifalab olish |
+| `GET`  | `/api/agents/me/balance`                                    | `ROLE_AGENT` | Joriy agent balansini olish              |
+| `GET`  | `/api/agents?page=0&size=20`                                | `ROLE_ADMIN` | Agentlarni sahifalab olish               |
+| `POST` | `/api/agents/{id}/topup`                                    | `ROLE_ADMIN` | Agent balansini to'ldirish               |
+| `POST` | `/api/admin/paynet-catalog/sync`                            | `ROLE_ADMIN` | Paynet katalogini qo'lda sinxronlash     |
+| `GET`  | `/api/admin/paynet-catalog/latest`                          | `ROLE_ADMIN` | Oxirgi sinxronizatsiya natijasi          |
 
 Recipient maydonlarini olishda `method` majburiy query parametri bo'lib, uning qiymati
 `CHECK` yoki `PAY` bo'lishi kerak.
@@ -219,16 +219,14 @@ To'lov yaratish so'rovi:
 
 ```json
 {
-  "recipientId": 2,
   "idempotencyKey": "550e8400-e29b-41d4-a716-446655440000",
-  "checkId": "paynet-check-id",
-  "fields": {
-    "phoneNumber": "+998901234567"
-  },
-  "account": "+998901234567",
-  "amount": 4000000
+  "checkId": "paynet-check-id"
 }
 ```
+
+Paylite `recipientId`, summa va ko'rsatiladigan `paymentReference` qiymatini Paynet'da
+`checkId` bo'yicha saqlangan, oldindan tekshirilgan ma'lumotlardan oladi. `pay` so'rovi ham
+faqat `checkId` va `idempotencyKey` yuboradi; rekvizitlar mijozdan qayta qabul qilinmaydi.
 
 Balansni to'ldirish so'rovi:
 
