@@ -7,12 +7,7 @@ public record RecipientFieldCatalogDto(
     String name,
     String label,
     String validationRegex,
-    Boolean active,
     Boolean required,
     String type,
-    Integer sortOrder,
-    Long recipientId,
-    String recipientName,
-    String categoryName,
     List<RecipientFieldValueCatalogDto> values
 ) {}

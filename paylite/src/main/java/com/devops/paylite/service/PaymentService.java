@@ -8,7 +8,6 @@ import com.devops.paylite.domain.PaynetRecipientFieldValue;
 import com.devops.paylite.domain.enumeration.PaymentStatus;
 import com.devops.paylite.mapper.PaymentCheckMapper;
 import com.devops.paylite.mapper.PaymentMapper;
-import com.devops.paylite.mapper.PaymentPayMapper;
 import com.devops.paylite.repository.PaymentRepository;
 import com.devops.paylite.repository.PaynetRecipientFieldRepository;
 import com.devops.paylite.repository.PaynetRecipientRepository;
@@ -50,7 +49,6 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
     private final PaymentCheckMapper paymentCheckMapper;
-    private final PaymentPayMapper paymentPayMapper;
     private final PaymentProperties paymentProperties;
     private final PaynetServiceClient paynetServiceClient;
     private final PaynetRecipientRepository paynetRecipientRepository;
@@ -122,7 +120,7 @@ public class PaymentService {
 
         Payment payment = claimedPayment.get();
 
-        PaynetPayRequestDto request = paymentPayMapper.toPaynetPayRequest(payment);
+        PaynetPayRequestDto request = new PaynetPayRequestDto(payment.getCheckId(), payment.getIdempotencyKey());
 
         try {
             if (payment.getAttemptCount() > 1) {
@@ -238,8 +236,6 @@ public class PaymentService {
     }
 
     private RecipientFieldCatalogDto toRecipientFieldCatalogDto(PaynetRecipientField field) {
-        PaynetRecipient recipient = field.getRecipient();
-
         List<RecipientFieldValueCatalogDto> values = field
             .getValues()
             .stream()
@@ -252,13 +248,8 @@ public class PaymentService {
             field.getName(),
             field.getLabel(),
             field.getValidationRegex(),
-            field.getActive(),
             field.getRequired(),
             field.getType().name(),
-            field.getSortOrder(),
-            recipient.getPaynetId(),
-            recipient.getName(),
-            recipient.getCategory().getName(),
             values
         );
     }
@@ -267,10 +258,7 @@ public class PaymentService {
         return new RecipientCatalogDto(
             recipient.getPaynetId(),
             recipient.getName(),
-            recipient.getCode(),
-            recipient.getActive(),
-            recipient.getCategory().getName(),
-            recipient.getCategory().getPaynetId()
+            recipient.getCategory().getName()
         );
     }
 
@@ -279,9 +267,6 @@ public class PaymentService {
             value.getPaynetId(),
             value.getValue(),
             value.getLabel(),
-            value.getActive(),
-            value.getSortOrder(),
-            value.getRecipientField().getPaynetId(),
             value.getParent() == null ? null : value.getParent().getPaynetId()
         );
     }

@@ -516,8 +516,7 @@ public class RecipientService {
                     "recipientId", checkResponseDto.getRecipientId(),
                     "recipientName", checkResponseDto.getRecipientName(),
                     "amount", checkRequestDto.getAmount(),
-                    "paymentReference", checkResponseDto.getPaymentReference(),
-                    "fields", checkRequestDto.getFields()
+                    "paymentReference", checkResponseDto.getPaymentReference()
             ));
         } catch (JsonProcessingException exception) {
             throw new RuntimeException("Failed to serialize check data", exception);
@@ -537,7 +536,6 @@ public class RecipientService {
         Long recipientId,
         String recipientName,
         Long amount,
-        String paymentReference,
-        Map<String, Object> fields
+        String paymentReference
     ) {}
 }

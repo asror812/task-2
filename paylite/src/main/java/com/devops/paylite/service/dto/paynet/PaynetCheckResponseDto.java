@@ -14,7 +14,6 @@ public class PaynetCheckResponseDto {
 
     private boolean valid;
     private String checkId;
-    private Long recipientId;
     private String recipientName;
     private String paymentReference;
     private List<String> errors;

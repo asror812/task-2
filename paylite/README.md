@@ -69,7 +69,7 @@ Hisoblangan komissiya `RoundingMode.HALF_UP` yordamida eng yaqin butun tiyingach
 - Balans umumiy summaga teng yoki undan katta bo'lsa, summa balansdan yechiladi va to'lov `PAID` holatida saqlanadi.
 - Balans yetarli bo'lmasa, balans o'zgarmaydi va to'lov `FAILED` holatida saqlanadi; API HTTP `422` qaytaradi.
 - Balansdan yechish va to'lovni saqlash bitta `@Transactional` service operatsiyasi ichida bajariladi. Saqlashda xato yuz bersa, tranzaksiya rollback qilinadi.
-- Xizmat maydonlari CHECK bosqichida Paynet orqali tekshiriladi va keyingi PAY so'rovi aynan shu saqlangan ma'lumotlardan foydalanadi. To'lov va top-up summalari musbat bo'lishi shart. Top-up uchun yuqori chegara `TOP_UP_MAX_AMOUNT` orqali sozlanadi (standart qiymat: `100000000` tiyin).
+- Xizmat maydonlari CHECK bosqichida Paynet orqali tekshiriladi. PAY so'rovi CHECK yaratgan `checkId` mavjudligini tekshiradi va to'lov uchun yangi `paymentId` yaratadi. To'lov va top-up summalari musbat bo'lishi shart. Top-up uchun yuqori chegara `TOP_UP_MAX_AMOUNT` orqali sozlanadi (standart qiymat: `100000000` tiyin).
 - Agent faqat autentifikatsiyadan o'tgan o'z loginiga tegishli to'lovlarni ko'ra oladi.
 
 ## Lokal ishga tushirish
@@ -154,7 +154,7 @@ Keycloak realm umumiy loyihadagi `realm-config` papkasidan import qilinadi.
 | Method | Endpoint                                                    | Rol          | Tavsif                                   |
 | ------ | ----------------------------------------------------------- | ------------ | ---------------------------------------- |
 | `GET`  | `/api/payments/catalog/recipients?page=0&size=20`           | `ROLE_AGENT` | Lokal katalogdagi faol xizmatlar         |
-| `GET`  | `/api/payments/catalog/recipients/{id}/fields?method=CHECK` | `ROLE_AGENT` | Xizmatning `CHECK` yoki `PAY` maydonlari |
+| `GET`  | `/api/payments/catalog/recipients/{id}/fields`              | `ROLE_AGENT` | Xizmatning faol maydonlari               |
 | `POST` | `/api/payments/check`                                       | `ROLE_AGENT` | Paynet orqali maydonlarni tekshirish     |
 | `POST` | `/api/payments`                                             | `ROLE_AGENT` | To'lovni navbatga qo'yish (`202`)        |
 | `GET`  | `/api/payments/{id}`                                        | `ROLE_AGENT` | Bitta to'lovning joriy holatini olish    |
@@ -164,9 +164,6 @@ Keycloak realm umumiy loyihadagi `realm-config` papkasidan import qilinadi.
 | `POST` | `/api/agents/{id}/topup`                                    | `ROLE_ADMIN` | Agent balansini to'ldirish               |
 | `POST` | `/api/admin/paynet-catalog/sync`                            | `ROLE_ADMIN` | Paynet katalogini qo'lda sinxronlash     |
 | `GET`  | `/api/admin/paynet-catalog/latest`                          | `ROLE_ADMIN` | Oxirgi sinxronizatsiya natijasi          |
-
-Recipient maydonlarini olishda `method` majburiy query parametri bo'lib, uning qiymati
-`CHECK` yoki `PAY` bo'lishi kerak.
 
 Paynet katalogi standart holatda har kuni soat `02:00` da (`Asia/Tashkent`) avtomatik sinxronlashtiriladi. Jadvalni `PAYNET_CATALOG_SYNC_CRON` va vaqt zonasini `PAYNET_CATALOG_SYNC_ZONE` orqali o'zgartirish mumkin.
 

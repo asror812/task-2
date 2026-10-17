@@ -212,8 +212,7 @@ class RecipientServiceTest {
                 "recipientId", 3L,
                 "recipientName", "Gas",
                 "amount", 10_000L,
-                "paymentReference", "regionId: 1, districtId: 10",
-                "fields", Map.of("regionId", "1", "districtId", "10")
+                "paymentReference", "regionId: 1, districtId: 10"
             ))
         );
 

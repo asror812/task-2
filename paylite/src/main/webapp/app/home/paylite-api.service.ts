@@ -52,10 +52,7 @@ export interface TopUpResponse {
 export interface Recipient {
   id: number;
   name: string;
-  code: string;
-  active: boolean;
   categoryName: string;
-  categoryId: number;
 }
 
 export type RecipientFieldType = 'TEXT' | 'NUMBER' | 'PHONE' | 'DATE' | 'SELECT';
@@ -64,9 +61,6 @@ export interface RecipientFieldValue {
   id: number;
   value: string;
   label: string;
-  active: boolean;
-  sortOrder: number;
-  recipientFieldId: number;
   parentId: number | null;
 }
 
@@ -75,13 +69,8 @@ export interface RecipientField {
   name: string;
   label: string;
   validationRegex: string | null;
-  active: boolean;
   required: boolean;
   type: RecipientFieldType;
-  sortOrder: number;
-  recipientId: number;
-  recipientName: string;
-  categoryName: string;
   values: RecipientFieldValue[];
 }
 
