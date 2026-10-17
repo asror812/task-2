@@ -1,6 +1,5 @@
 package com.devops.paynet.dto;
 
-import com.devops.paynet.domain.enumeration.RecipientFieldMethod;
 import com.devops.paynet.domain.enumeration.RecipientFieldType;
 import jakarta.validation.constraints.*;
 
@@ -16,9 +15,6 @@ public record RecipientFieldCreateDto(
 
         @Size(max = 255, message = "Validation regex must be at most 255 characters")
         String validationRegex,
-
-        @NotNull(message = "Method is required")
-        RecipientFieldMethod method,
 
         @NotNull(message = "Active status is required")
         Boolean active,

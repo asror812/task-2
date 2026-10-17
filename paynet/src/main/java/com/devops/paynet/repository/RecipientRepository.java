@@ -44,9 +44,16 @@ public interface RecipientRepository extends JpaRepository<Recipient, Long> {
     "select distinct recipient from Recipient recipient " +
     "left join fetch recipient.category " +
     "left join fetch recipient.recipientFields field " +
-    "left join fetch field.values value " +
-    "where :updatedSince is null " +
-    "or recipient.lastModifiedDate > :updatedSince " +
+    "left join field.values value"
+  )
+  List<Recipient> findCatalog();
+
+  @Query(
+    "select distinct recipient from Recipient recipient " +
+    "left join fetch recipient.category " +
+    "left join fetch recipient.recipientFields field " +
+    "left join field.values value " +
+    "where recipient.lastModifiedDate > :updatedSince " +
     "or field.lastModifiedDate > :updatedSince " +
     "or value.lastModifiedDate > :updatedSince"
   )

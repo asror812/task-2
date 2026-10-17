@@ -9,7 +9,6 @@ import static org.mockito.Mockito.when;
 
 import com.devops.paynet.domain.Recipient;
 import com.devops.paynet.domain.RecipientField;
-import com.devops.paynet.domain.enumeration.RecipientFieldMethod;
 import com.devops.paynet.domain.enumeration.RecipientFieldType;
 import com.devops.paynet.dto.RecipientFieldCreateDto;
 import com.devops.paynet.mapper.RecipientFieldMapper;
@@ -69,7 +68,6 @@ class RecipientFieldServiceTest {
             "account",
             "Account",
             null,
-            RecipientFieldMethod.CHECK,
             true,
             true,
             RecipientFieldType.TEXT,

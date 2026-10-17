@@ -24,7 +24,6 @@ public interface RecipientFieldMapper {
         recipientField.setName(recipientFieldCreateDTO.name());
         recipientField.setLabel(recipientFieldCreateDTO.label());
         recipientField.setValidationRegex(recipientFieldCreateDTO.validationRegex());
-        recipientField.setMethod(recipientFieldCreateDTO.method());
         recipientField.setActive(recipientFieldCreateDTO.active());
         recipientField.setRequired(recipientFieldCreateDTO.required());
         recipientField.setType(recipientFieldCreateDTO.type());
@@ -60,7 +59,6 @@ public interface RecipientFieldMapper {
             recipientField.getName(),
             recipientField.getLabel(),
             recipientField.getValidationRegex(),
-            recipientField.getMethod(),
             recipientField.getActive(),
             recipientField.getRequired(),
             recipientField.getType(),

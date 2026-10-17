@@ -3,6 +3,7 @@ package com.devops.paynet.web.rest;
 import com.devops.paynet.security.AuthoritiesConstants;
 import com.devops.paynet.service.RecipientService;
 import com.devops.paynet.dto.CheckRequestDto;
+import com.devops.paynet.dto.CheckDetailsDto;
 import com.devops.paynet.dto.CheckResponseDto;
 import com.devops.paynet.dto.PayRequestDto;
 import com.devops.paynet.dto.PayResponseDto;
@@ -129,6 +130,12 @@ public class RecipientResource {
 
         CheckResponseDto checkResponseDto = recipientService.checkRecipient(recipientId, checkRequestDto);
         return ResponseEntity.ok().body(checkResponseDto);
+    }
+
+    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.PAYNET_CLIENT + "')")
+    @GetMapping("/checks/{checkId}")
+    public ResponseEntity<CheckDetailsDto> getCheckDetails(@PathVariable String checkId) {
+        return ResponseEntity.ok(recipientService.getCheckDetails(checkId));
     }
 
     @PreAuthorize("hasAuthority('" + AuthoritiesConstants.PAYNET_CLIENT + "')")

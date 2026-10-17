@@ -1,6 +1,5 @@
 package com.devops.paynet.dto;
 
-import com.devops.paynet.domain.enumeration.RecipientFieldMethod;
 import com.devops.paynet.domain.enumeration.RecipientFieldType;
 import java.time.Instant;
 import java.util.List;
@@ -11,8 +10,6 @@ public record RecipientFieldResponseDto(
         String name,
         String label,
         String validationRegex,
-        RecipientFieldMethod method,
-
         Boolean active,
         Boolean required,
 

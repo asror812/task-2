@@ -10,10 +10,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.devops.paynet.domain.Category;
+import com.devops.paynet.config.PaymentProperties;
 import com.devops.paynet.domain.Recipient;
 import com.devops.paynet.domain.RecipientField;
 import com.devops.paynet.domain.RecipientFieldValue;
-import com.devops.paynet.domain.enumeration.RecipientFieldMethod;
 import com.devops.paynet.domain.enumeration.RecipientFieldType;
 import com.devops.paynet.repository.RecipientFieldValueRepository;
 import com.devops.paynet.repository.RecipientRepository;
@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,6 +61,8 @@ class RecipientServiceTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
+    private PaymentProperties paymentProperties;
+
     private RecipientService service;
     private Recipient recipient;
     private RecipientField regionField;
@@ -69,6 +72,7 @@ class RecipientServiceTest {
 
     @BeforeEach
     void setUp() {
+        paymentProperties = new PaymentProperties();
         service = new RecipientService(
             recipientRepository,
             categoryRepository,
@@ -76,7 +80,8 @@ class RecipientServiceTest {
             recipientFieldMapper,
             recipientFieldValueRepository,
             redisTemplate,
-            new ObjectMapper()
+            new ObjectMapper(),
+            paymentProperties
         );
 
         recipient = new Recipient();
@@ -140,7 +145,9 @@ class RecipientServiceTest {
 
         assertThat(response.isValid()).isTrue();
         assertThat(response.getCheckId()).isNotBlank();
+        assertThat(response.getPaymentReference()).isEqualTo("regionId: 1, districtId: 10");
         assertThat(response.getErrors()).isEmpty();
+        verify(valueOperations).set(any(String.class), any(String.class), eq(Duration.ofMinutes(15)));
     }
 
     @Test
@@ -177,7 +184,25 @@ class RecipientServiceTest {
     }
 
     @Test
-    void rejectsPaymentWhenAmountDiffersFromCheckedAmount() throws Exception {
+    void rejectsFieldsThatAreNotConfiguredForCheck() {
+        when(recipientFieldValueRepository.findOneByRecipientField_IdAndValueAndActiveTrue(7L, "1"))
+            .thenReturn(Optional.of(tashkent));
+        when(recipientFieldValueRepository.findOneByRecipientField_IdAndValueAndActiveTrue(8L, "10"))
+            .thenReturn(Optional.of(yunusabad));
+
+        CheckResponseDto response = service.checkRecipient(
+            3L,
+            new CheckRequestDto(Map.of("regionId", "1", "districtId", "10", "unexpected", "secret"), 10_000L)
+        );
+
+        assertThat(response.isValid()).isFalse();
+        assertThat(response.getCheckId()).isNull();
+        assertThat(response.getErrors()).containsExactly("unexpected is not a supported CHECK field");
+        verify(redisTemplate, never()).opsForValue();
+    }
+
+    @Test
+    void paysWhenCheckExists() throws Exception {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.setIfAbsent(eq("paynet:pay:lock:request-1"), any(String.class), any())).thenReturn(true);
         when(valueOperations.get("paynet:pay:idempotency:request-1")).thenReturn(null);
@@ -187,18 +212,22 @@ class RecipientServiceTest {
                 "recipientId", 3L,
                 "recipientName", "Gas",
                 "amount", 10_000L,
+                "paymentReference", "regionId: 1, districtId: 10",
                 "fields", Map.of("regionId", "1", "districtId", "10")
             ))
         );
 
         PayResponseDto response = service.payRecipient(
             3L,
-            new PayRequestDto("check-1", "request-1", Map.of(), 20_000L)
+            new PayRequestDto("check-1", "request-1")
         );
 
-        assertThat(response.isPaid()).isFalse();
-        assertThat(response.getErrors()).containsExactly("Payment amount differs from checked amount");
-        verify(redisTemplate, never()).delete("paynet:check:check-1");
+        assertThat(response.isPaid()).isTrue();
+        assertThat(response.getPaymentId()).isNotBlank();
+        assertThat(response.getCheckId()).isEqualTo("check-1");
+        verify(redisTemplate).delete("paynet:check:check-1");
+        verify(valueOperations).setIfAbsent(eq("paynet:pay:lock:request-1"), any(String.class), eq(Duration.ofSeconds(60)));
+        verify(valueOperations).set(eq("paynet:pay:idempotency:request-1"), any(String.class), eq(Duration.ofDays(7)));
     }
 
     @Test
@@ -208,7 +237,6 @@ class RecipientServiceTest {
         dateField.setName("billingDate");
         dateField.setLabel("Billing date");
         dateField.setType(RecipientFieldType.DATE);
-        dateField.setMethod(RecipientFieldMethod.CHECK);
         dateField.setRequired(true);
         dateField.setActive(true);
         dateField.setSortOrder(1);
@@ -243,7 +271,6 @@ class RecipientServiceTest {
         field.setName(name);
         field.setLabel(name);
         field.setType(RecipientFieldType.SELECT);
-        field.setMethod(RecipientFieldMethod.CHECK);
         field.setRequired(true);
         field.setActive(true);
         field.setSortOrder(id.intValue());

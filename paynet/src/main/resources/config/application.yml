@@ -200,3 +200,8 @@ jhipster:
       audience:
         - account
         - api://default
+
+payment:
+  check-ttl: ${PAYMENT_CHECK_TTL:15m}
+  processing-lock-ttl: ${PAYMENT_PROCESSING_LOCK_TTL:60s}
+  idempotency-ttl: ${PAYMENT_IDEMPOTENCY_TTL:7d}

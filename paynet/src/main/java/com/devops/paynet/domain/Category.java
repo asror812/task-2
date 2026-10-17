@@ -5,9 +5,6 @@ import jakarta.validation.constraints.*;
 import java.io.Serial;
 import java.io.Serializable;
 
-/**
- * A Category.
- */
 @Entity
 @Table(name = "category")
 @SuppressWarnings("common-java:DuplicatedBlocks")

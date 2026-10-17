@@ -4,13 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.devops.paynet.domain.RecipientField;
 import com.devops.paynet.domain.RecipientFieldValue;
-import com.devops.paynet.domain.enumeration.RecipientFieldMethod;
 import com.devops.paynet.domain.enumeration.RecipientFieldType;
 import com.devops.paynet.domain.Recipient;
+import com.devops.paynet.config.PaymentProperties;
 import com.devops.paynet.repository.RecipientRepository;
 import com.devops.paynet.repository.CategoryRepository;
 import com.devops.paynet.repository.RecipientFieldValueRepository;
 import com.devops.paynet.dto.CheckRequestDto;
+import com.devops.paynet.dto.CheckDetailsDto;
 import com.devops.paynet.dto.CheckResponseDto;
 import com.devops.paynet.dto.CategoryResponseDto;
 import com.devops.paynet.dto.PayRequestDto;
@@ -24,20 +25,12 @@ import com.devops.paynet.dto.RecipientResponseDto;
 import com.devops.paynet.mapper.RecipientFieldMapper;
 import com.devops.paynet.mapper.RecipientMapper;
 import com.devops.paynet.web.rest.errors.ResourceNotFoundException;
-
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-
+import java.util.*;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -49,14 +42,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Service Implementation for managing {@link com.devops.paynet.domain.Recipient}.
- */
 @Service
+@RequiredArgsConstructor
 public class RecipientService {
 
     private static final Logger LOG = LoggerFactory.getLogger(RecipientService.class);
-    private static final Duration PAYMENT_LOCK_TTL = Duration.ofSeconds(30);
+
     private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>(
         "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
         Long.class
@@ -69,24 +60,7 @@ public class RecipientService {
     private final RecipientFieldValueRepository recipientFieldValueRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-
-    public RecipientService(
-            RecipientRepository recipientRepository,
-            CategoryRepository categoryRepository,
-            RecipientMapper recipientMapper,
-            RecipientFieldMapper recipientFieldMapper,
-            RecipientFieldValueRepository recipientFieldValueRepository,
-            StringRedisTemplate stringRedisTemplate,
-            ObjectMapper objectMapper
-    ) {
-        this.recipientRepository = recipientRepository;
-        this.categoryRepository = categoryRepository;
-        this.recipientMapper = recipientMapper;
-        this.recipientFieldMapper = recipientFieldMapper;
-        this.recipientFieldValueRepository = recipientFieldValueRepository;
-        this.redisTemplate = stringRedisTemplate;
-        this.objectMapper = objectMapper;
-    }
+    private final PaymentProperties paymentProperties;
 
     /**
      * Save a recipient.
@@ -138,8 +112,13 @@ public class RecipientService {
 
     @Transactional(readOnly = true)
     public List<RecipientCatalogResponseDto> findCatalog(Instant updatedSince) {
-        return recipientRepository.findCatalogUpdatedSince(updatedSince).stream()
+        List<Recipient> recipients = updatedSince == null
+                ? recipientRepository.findCatalog()
+                : recipientRepository.findCatalogUpdatedSince(updatedSince);
+
+        return recipients.stream()
             .map(recipient -> {
+
                 List<RecipientFieldResponseDto> fields = recipient.getRecipientFields() == null
                     ? List.of()
                     : recipient.getRecipientFields().stream()
@@ -154,6 +133,7 @@ public class RecipientService {
                         .stream()
                         .map(recipientFieldMapper::toResponseDto)
                         .toList();
+
                 var category = recipient.getCategory();
                 CategoryResponseDto categoryDto = new CategoryResponseDto(
                     category.getId(),
@@ -162,6 +142,7 @@ public class RecipientService {
                     category.getSortOrder(),
                     category.getLastModifiedDate()
                 );
+
                 return new RecipientCatalogResponseDto(categoryDto, recipientMapper.toResponseDto(recipient), fields);
             })
             .toList();
@@ -175,13 +156,7 @@ public class RecipientService {
         return recipientMapper.toResponseDto(recipientRepository.save(recipient));
     }
 
-    /**
-     * Check a recipient.
-     *
-     * @param recipientId the id of the recipient to check.
-     * @param checkRequestDto the check request data.
-     * @return the check response.
-     */
+
     @Transactional
     public CheckResponseDto checkRecipient(Long recipientId, CheckRequestDto checkRequestDto) {
         LOG.debug("Request to check Recipient : {}", recipientId);
@@ -219,19 +194,32 @@ public class RecipientService {
 
         if (checkResponseDto.isValid()) {
             String checkId = UUID.randomUUID().toString();
+            String paymentReference = buildPaymentReference(recipient, checkRequestDto.getFields());
             checkResponseDto.setCheckId(checkId);
-            redisTemplate.opsForValue().set(redisKey(checkId), toJson(checkResponseDto, checkRequestDto), Duration.ofMinutes(5));
+            checkResponseDto.setPaymentReference(paymentReference);
+            redisTemplate.opsForValue().set(redisKey(checkId), toJson(checkResponseDto, checkRequestDto), paymentProperties.getCheckTtl());
         }
 
         return checkResponseDto;
     }
 
-    @Transactional
+    public CheckDetailsDto getCheckDetails(String checkId) {
+        String storedCheck = redisTemplate.opsForValue().get(redisKey(checkId));
+        if (storedCheck == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Check ID is expired or not found");
+        }
+
+        StoredCheckData checkData = readStoredCheck(storedCheck);
+        return new CheckDetailsDto(
+                checkData.checkId(),
+                checkData.recipientId(),
+                checkData.amount(),
+                checkData.paymentReference()
+        );
+    }
+
     public PayResponseDto payRecipient(Long recipientId, PayRequestDto payRequestDto) {
         LOG.info("Payment processing started recipientId={}", recipientId);
-
-        Recipient recipient = recipientRepository.findOneWithRecipientFields(recipientId)
-                .orElseThrow(() -> new ResourceNotFoundException("Recipient", recipientId));
 
         PayResponseDto existingResponse = findExistingPayResponse(recipientId, payRequestDto);
 
@@ -242,7 +230,7 @@ public class RecipientService {
 
         String lockKey = payIdempotencyLockKey(payRequestDto.getIdempotencyKey());
         String lockToken = UUID.randomUUID().toString();
-        Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(lockKey, lockToken, PAYMENT_LOCK_TTL);
+        Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(lockKey, lockToken, paymentProperties.getProcessingLockTtl());
 
         if (!Boolean.TRUE.equals(lockAcquired)) {
             PayResponseDto completedResponse = findExistingPayResponse(recipientId, payRequestDto);
@@ -253,41 +241,21 @@ public class RecipientService {
         }
 
         try {
-            return processPayment(recipientId, payRequestDto, recipient);
+            return processPayment(recipientId, payRequestDto);
         } finally {
             redisTemplate.execute(RELEASE_LOCK_SCRIPT, List.of(lockKey), lockToken);
         }
     }
 
-    private PayResponseDto processPayment(Long recipientId, PayRequestDto payRequestDto, Recipient recipient) {
-
-        if (!Boolean.TRUE.equals(recipient.getActive())) {
-            LOG.warn("Payment rejected recipientId={} reason=RECIPIENT_INACTIVE", recipientId);
-            return new PayResponseDto(
-                    false,
-                    null,
-                    recipient.getId(),
-                    recipient.getName(),
-                    List.of("Recipient is not active"));
-        }
-
-        if (!hasActiveFields(recipient)) {
-            return new PayResponseDto(
-                    false,
-                    null,
-                    recipient.getId(),
-                    recipient.getName(),
-                    List.of("Recipient has no active fields"));
-        }
-
+    private PayResponseDto processPayment(Long recipientId, PayRequestDto payRequestDto) {
         String storedCheck = redisTemplate.opsForValue().get(redisKey(payRequestDto.getCheckId()));
         if (storedCheck == null) {
             LOG.warn("Payment rejected recipientId={} reason=CHECK_NOT_FOUND", recipientId);
             return new PayResponseDto(
                     false,
                     null,
-                    recipient.getId(),
-                    recipient.getName(),
+                    recipientId,
+                    null,
                     List.of("Check ID is expired or not found"));
         }
 
@@ -296,31 +264,26 @@ public class RecipientService {
             return new PayResponseDto(
                     false,
                     null,
-                    recipient.getId(),
-                    recipient.getName(),
+                    recipientId,
+                    checkData.recipientName(),
                     List.of("Check ID belongs to another recipient"));
         }
 
-        if (!payRequestDto.getAmount().equals(checkData.amount())) {
-            return new PayResponseDto(
-                    false,
-                    null,
-                    recipient.getId(),
-                    recipient.getName(),
-                    List.of("Payment amount differs from checked amount"));
-        }
-
-        List<String> validationErrors = validatePayFields(recipient, payRequestDto);
-        if (!validationErrors.isEmpty()) {
-            LOG.warn("Payment rejected recipientId={} reason=VALIDATION_FAILED errorCount={}", recipientId, validationErrors.size());
-            return new PayResponseDto(false, null, recipient.getId(), recipient.getName(), validationErrors);
-        }
-
         String paymentId = UUID.randomUUID().toString();
-        redisTemplate.delete(redisKey(payRequestDto.getCheckId()));
 
-        PayResponseDto response = new PayResponseDto(true, paymentId, recipient.getId(), recipient.getName(), List.of());
-        redisTemplate.opsForValue().set(payIdempotencyKey(payRequestDto.getIdempotencyKey()), toJson(response), Duration.ofDays(1));
+        PayResponseDto response = new PayResponseDto(
+            true,
+            paymentId,
+            checkData.recipientId(),
+            checkData.recipientName(),
+            List.of()
+        );
+
+        response.setCheckId(payRequestDto.getCheckId());
+        redisTemplate
+            .opsForValue()
+            .set(payIdempotencyKey(payRequestDto.getIdempotencyKey()), toJson(response), paymentProperties.getIdempotencyTtl());
+        redisTemplate.delete(redisKey(payRequestDto.getCheckId()));
 
         LOG.info("Payment completed recipientId={} paymentId={}", recipientId, paymentId);
         return response;
@@ -343,63 +306,19 @@ public class RecipientService {
             return errors;
         }
 
-        for (RecipientField field : recipient.getRecipientFields()) {
-            if (field.getMethod() != RecipientFieldMethod.CHECK || !Boolean.TRUE.equals(field.getActive())) {
-                continue;
-            }
+        Set<String> allowedFieldNames = recipient.getRecipientFields().stream()
+            .filter(field -> Boolean.TRUE.equals(field.getActive()))
+            .map(RecipientField::getName)
+            .collect(java.util.stream.Collectors.toSet());
 
-            Object value = requestFields.get(field.getName());
-            String valueAsString = value == null ? null : value.toString().trim();
-
-            if (Boolean.TRUE.equals(field.getRequired()) && (valueAsString == null || valueAsString.isBlank())) {
-                errors.add(field.getName() + " is required");
-                continue;
-            }
-
-            if (valueAsString != null && !valueAsString.isBlank() && !hasValidBaseFormat(field.getType(), valueAsString)) {
-                errors.add(field.getName() + " has invalid " + field.getType() + " format");
-                continue;
-            }
-
-            if (valueAsString != null && !valueAsString.isBlank() && field.getValidationRegex() != null && !field.getValidationRegex().isBlank()) {
-                if (!valueAsString.matches(field.getValidationRegex())) {
-                    errors.add(field.getName() + " is invalid");
-                }
-            }
-
-            validateSelectValue(field, valueAsString, requestFields).ifPresent(errors::add);
-        }
-
-        return errors;
-    }
-
-    private List<String> validatePayFields(Recipient recipient, PayRequestDto payRequestDto) {
-        List<String> errors = new ArrayList<>();
-        Map<String, Object> requestFields = payRequestDto == null ? null : payRequestDto.getFields();
-
-        if (payRequestDto == null || payRequestDto.getCheckId() == null || payRequestDto.getCheckId().isBlank()) {
-            errors.add("checkId is required");
-        }
-
-        if (payRequestDto == null || payRequestDto.getIdempotencyKey() == null || payRequestDto.getIdempotencyKey().isBlank()) {
-            errors.add("idempotencyKey is required");
-        }
-
-        if (payRequestDto == null || payRequestDto.getAmount() == null || payRequestDto.getAmount() <= 0) {
-            errors.add("amount must be positive");
-        }
-
-        if (requestFields == null) {
-            errors.add("Fields cannot be empty");
-            return errors;
-        }
-
-        if (recipient.getRecipientFields() == null) {
-            return errors;
-        }
+        requestFields.keySet().stream()
+            .filter(fieldName -> fieldName == null || !allowedFieldNames.contains(fieldName))
+            .map(fieldName -> fieldName == null ? "<null>" : fieldName)
+            .sorted()
+            .forEach(fieldName -> errors.add(fieldName + " is not a supported CHECK field"));
 
         for (RecipientField field : recipient.getRecipientFields()) {
-            if (field.getMethod() != RecipientFieldMethod.PAY || !Boolean.TRUE.equals(field.getActive())) {
+            if (!Boolean.TRUE.equals(field.getActive())) {
                 continue;
             }
 
@@ -452,9 +371,40 @@ public class RecipientService {
         return Optional.empty();
     }
 
+    private String buildPaymentReference(Recipient recipient, Map<String, Object> fields) {
+        if (recipient.getRecipientFields() == null) {
+            return recipient.getName();
+        }
+
+        String reference = recipient
+                .getRecipientFields()
+                .stream()
+                .filter(field -> Boolean.TRUE.equals(field.getActive()))
+                .sorted(
+                        Comparator.comparing(
+                                        RecipientField::getSortOrder,
+                                        Comparator.nullsLast(Integer::compareTo)
+                                )
+                                .thenComparing(RecipientField::getId, Comparator.nullsLast(Long::compareTo))
+                )
+                .map(field -> formatReferencePart(field, fields.get(field.getName())))
+                .filter(Objects::nonNull)
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("");
+
+        return reference.isBlank() ? recipient.getName() : reference;
+    }
+
+    private String formatReferencePart(RecipientField field, Object value) {
+        if (value == null || value.toString().isBlank()) {
+            return null;
+        }
+        return field.getLabel() + ": " + value.toString().trim();
+    }
+
     private boolean hasActiveFields(Recipient recipient) {
         return recipient.getRecipientFields() != null && recipient.getRecipientFields().stream()
-            .anyMatch(field -> Boolean.TRUE.equals(field.getActive()));
+                .anyMatch(field -> Boolean.TRUE.equals(field.getActive()));
     }
 
     private boolean hasValidBaseFormat(RecipientFieldType type, String value) {
@@ -466,10 +416,6 @@ public class RecipientService {
                     yield value.matches("^[+-]?\\d+([.,]\\d+)?$");
                 }
                 case PHONE -> value.matches("^\\+?[0-9]{7,15}$");
-                case AMOUNT -> {
-                    BigDecimal amount = new BigDecimal(value.replace(',', '.'));
-                    yield value.matches("^\\d+([.,]\\d{1,2})?$") && amount.signum() > 0;
-                }
                 case DATE -> {
                     LocalDate.parse(value);
                     yield true;
@@ -514,9 +460,10 @@ public class RecipientService {
             }
         }
 
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(payIdempotencyLockKey(idempotencyKey)))) {
+        if (redisTemplate.hasKey(payIdempotencyLockKey(idempotencyKey))) {
             return new PaymentStatusResponseDto(PaymentLookupStatus.PROCESSING, null, List.of());
         }
+
         return new PaymentStatusResponseDto(PaymentLookupStatus.NOT_FOUND, null, List.of());
     }
 
@@ -542,6 +489,12 @@ public class RecipientService {
                         "Idempotency key belongs to another recipient"
                 );
             }
+            if (response.getCheckId() != null && !payRequestDto.getCheckId().equals(response.getCheckId())) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Idempotency key belongs to another check"
+                );
+            }
             return response;
         } catch (JsonProcessingException exception) {
             throw new RuntimeException("Failed to deserialize pay response", exception);
@@ -563,6 +516,7 @@ public class RecipientService {
                     "recipientId", checkResponseDto.getRecipientId(),
                     "recipientName", checkResponseDto.getRecipientName(),
                     "amount", checkRequestDto.getAmount(),
+                    "paymentReference", checkResponseDto.getPaymentReference(),
                     "fields", checkRequestDto.getFields()
             ));
         } catch (JsonProcessingException exception) {
@@ -583,6 +537,7 @@ public class RecipientService {
         Long recipientId,
         String recipientName,
         Long amount,
+        String paymentReference,
         Map<String, Object> fields
     ) {}
 }

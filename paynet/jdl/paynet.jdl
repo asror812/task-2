@@ -18,7 +18,6 @@ entity RecipientField {
     name String required maxlength(50),
     label String required maxlength(100),
     validationRegex String maxlength(255),
-    method RecipientFieldMethod required,
     active Boolean required,
     required Boolean required,
     type RecipientFieldType required,
@@ -29,13 +28,8 @@ enum RecipientFieldType {
     TEXT,
     NUMBER,
     PHONE,
-    AMOUNT,
-    DATE
-}
-
-enum RecipientFieldMethod {
-    CHECK,
-    PAY
+    DATE,
+    SELECT
 }
 
 relationship ManyToOne {

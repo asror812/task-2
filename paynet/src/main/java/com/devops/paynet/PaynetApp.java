@@ -2,6 +2,7 @@ package com.devops.paynet;
 
 import com.devops.paynet.config.ApplicationProperties;
 import com.devops.paynet.config.CRLFLogConverter;
+import com.devops.paynet.config.PaymentProperties;
 import jakarta.annotation.PostConstruct;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -20,7 +21,7 @@ import tech.jhipster.config.DefaultProfileUtil;
 import tech.jhipster.config.JHipsterConstants;
 
 @SpringBootApplication
-@EnableConfigurationProperties({ LiquibaseProperties.class, ApplicationProperties.class })
+@EnableConfigurationProperties({ LiquibaseProperties.class, ApplicationProperties.class, PaymentProperties.class })
 public class PaynetApp {
 
     private static final Logger LOG = LoggerFactory.getLogger(PaynetApp.class);

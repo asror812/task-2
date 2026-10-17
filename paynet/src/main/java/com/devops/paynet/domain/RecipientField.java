@@ -1,6 +1,5 @@
 package com.devops.paynet.domain;
 
-import com.devops.paynet.domain.enumeration.RecipientFieldMethod;
 import com.devops.paynet.domain.enumeration.RecipientFieldType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -48,11 +47,6 @@ public class RecipientField extends AbstractAuditingEntity<Long> {
   @Size(max = 255)
   @Column(name = "validation_regex", length = 255)
   private String validationRegex;
-
-  @NotNull
-  @Enumerated(EnumType.STRING)
-  @Column(name = "method", nullable = false)
-  private RecipientFieldMethod method;
 
   @NotNull
   @Column(name = "active", nullable = false)
@@ -109,14 +103,6 @@ public class RecipientField extends AbstractAuditingEntity<Long> {
 
   public void setValidationRegex(String validationRegex) {
     this.validationRegex = validationRegex;
-  }
-
-  public RecipientFieldMethod getMethod() {
-    return this.method;
-  }
-
-  public void setMethod(RecipientFieldMethod method) {
-    this.method = method;
   }
 
   public Boolean getActive() {
@@ -191,7 +177,6 @@ public class RecipientField extends AbstractAuditingEntity<Long> {
             ", name='" + getName() + "'" +
             ", label='" + getLabel() + "'" +
             ", validationRegex='" + getValidationRegex() + "'" +
-            ", method='" + getMethod() + "'" +
             ", active='" + getActive() + "'" +
             ", required='" + getRequired() + "'" +
             ", type='" + getType() + "'" +

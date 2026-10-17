@@ -26,12 +26,6 @@
       "fieldValidateRulesMaxlength": "255"
     },
     {
-      "fieldName": "method",
-      "fieldType": "RecipientFieldMethod",
-      "fieldValidateRules": ["required"],
-      "fieldValues": "CHECK,PAY"
-    },
-    {
       "fieldName": "active",
       "fieldType": "Boolean",
       "fieldValidateRules": ["required"]
@@ -45,7 +39,7 @@
       "fieldName": "type",
       "fieldType": "RecipientFieldType",
       "fieldValidateRules": ["required"],
-      "fieldValues": "TEXT,NUMBER,PHONE,AMOUNT,DATE,SELECT"
+      "fieldValues": "TEXT,NUMBER,PHONE,DATE,SELECT"
     },
     {
       "fieldName": "sortOrder",
